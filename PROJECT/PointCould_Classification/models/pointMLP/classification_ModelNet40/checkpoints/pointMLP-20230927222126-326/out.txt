@@ -1,0 +1,4 @@
+args: Namespace(checkpoint='checkpoints/pointMLP-20230927222126-326', msg=None, batch_size=8, model='pointMLP', epoch=1, num_points=1024, learning_rate=0.1, min_lr=0.005, weight_decay=0.0002, seed=326, workers=8)
+==> Building model..
+==> Preparing data..
+Epoch(1/1) Learning Rate 0.1, batch-size 8:
