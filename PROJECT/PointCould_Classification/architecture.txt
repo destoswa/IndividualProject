@@ -18,7 +18,7 @@
 		requirements.txt
 		preprocess.py
 		readme.md
-	figures/
+	results/
 		results_allmodels.csv
 		model1/
 		model2/
