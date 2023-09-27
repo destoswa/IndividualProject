@@ -1,0 +1,7 @@
+QUESTIONS
+- One of the method to do single-tree delineation seems better than the other. Should I start implementing it?
+- No paper seems to give their code. Did I miss it or is it normal and expected that I implement each method?
+- Couldn't find Canopy Height Model (CHM) - extractor that works. Do you have a software/code for that or should I implement it? (some papers are explaining it)
+- How heavy is the LAS dataset?
+- Are you still labelizing in-citu? If yes, are you looking for people to go on the field?
+- How sparse is the tree distribution? - High vertical stratification ? - If yes, could we try to use convnet models ?

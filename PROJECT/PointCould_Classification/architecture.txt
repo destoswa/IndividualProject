@@ -1,0 +1,25 @@
+./
+	data/
+		garbadge/
+		single/
+		multiple/
+	figures/
+		results_allmodels.csv
+		model1/
+		model2/
+		model3/
+		...
+	preprocess.py
+	src/
+		preproc_model1.py
+		preproc_model2.py
+		preproc_model3.py
+		...
+	models/
+		model1/
+		model2/
+		model3/
+		...
+	setup.py
+	requirements.txt
+	readme.md
