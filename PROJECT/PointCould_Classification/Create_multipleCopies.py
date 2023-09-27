@@ -14,10 +14,10 @@ def MultipleCopies(file_name, folder, num_copies):
 
 
 if __name__ == "__main__":
-    os.chdir("data")
+    """os.chdir("data")
     os.chdir("data/garbadge")
     os.chdir("data/single")
     os.chdir("datamultiple")
-    shutil.copyfile('example','example_garbadge')
-    MultipleCopies('example_garbadge', './copy/garbadge', 100)
+    shutil.copyfile('example','example_garbadge')"""
+    MultipleCopies('example_garbadge', 'garbadge', 100)
 
