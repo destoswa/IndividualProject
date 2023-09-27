@@ -1,25 +1,38 @@
 ./
-	data/
-		garbadge/
-		single/
-		multiple/
+	preprocessing/
+		data/
+			garbadge/
+			single/
+			multiple/
+		data_models/
+			model1/
+			model2/
+			model3/
+			...
+		src/
+			preproc_model1.py
+			preproc_model2.py
+			preproc_model3.py
+			...
+		venv/
+		requirements.txt
+		preprocess.py
+		readme.md
 	figures/
 		results_allmodels.csv
 		model1/
 		model2/
 		model3/
 		...
-	preprocess.py
-	src/
-		preproc_model1.py
-		preproc_model2.py
-		preproc_model3.py
-		...
 	models/
 		model1/
+			venv/
+			readme.md
 		model2/
+			venv/
+			readme.md
 		model3/
+			venv/
+			readme.md
 		...
-	setup.py
-	requirements.txt
 	readme.md

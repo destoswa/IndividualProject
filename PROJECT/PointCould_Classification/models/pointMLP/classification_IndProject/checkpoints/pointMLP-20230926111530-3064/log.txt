@@ -1,0 +1,2 @@
+Epoch-Num	Learning-Rate	Train-Loss	Train-acc-B	Train-acc	Valid-Loss	Valid-acc-B	Valid-acc	
+0.000000	0.005000	3.593000	4.659000	11.240000	3.454000	6.925000	11.224000	

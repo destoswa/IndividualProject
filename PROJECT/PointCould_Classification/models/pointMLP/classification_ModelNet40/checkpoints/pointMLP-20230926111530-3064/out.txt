@@ -1,0 +1,14 @@
+args: Namespace(checkpoint='checkpoints/pointMLP-20230926111530-3064', msg=None, batch_size=8, model='pointMLP', epoch=1, num_points=1024, learning_rate=0.1, min_lr=0.005, weight_decay=0.0002, seed=3064, workers=8)
+==> Building model..
+==> Preparing data..
+Epoch(1/1) Learning Rate 0.1, batch-size 8:
+Training loss:3.593 acc_avg:4.659% acc:11.24% time:410s
+Testing loss:3.454 acc_avg:6.925% acc:11.224% time:48s [best test acc: 11.224%] 
+
+
+++++++++++++++++Final results++++++++++++++++
+++  Last Train time: 410 | Last Test time: 48  ++
+++  Best Train loss: 3.593 | Best Test loss: 3.454  ++
+++  Best Train acc_B: 4.659 | Best Test acc_B: 6.925  ++
+++  Best Train acc: 11.24 | Best Test acc: 11.224  ++
+++++++++++++++++++++++++++++++++++++++++

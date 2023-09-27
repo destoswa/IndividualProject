@@ -1,0 +1,11 @@
+checkpoint:	 checkpoints/pointMLP-20230926111429-5384
+msg:	 None
+batch_size:	 8
+model:	 pointMLP
+epoch:	 10
+num_points:	 1024
+learning_rate:	 0.1
+min_lr:	 0.005
+weight_decay:	 0.0002
+seed:	 5384
+workers:	 8

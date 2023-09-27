@@ -1,0 +1,10 @@
+# ninja log v5
+6	8762	7174194620286414	C:/Users/swann/Tests_indProject/pointMLP-pytorch/pointnet2_ops_lib/build/temp.win-amd64-cpython-39/Release/pointnet2_ops/_ext-src/src/ball_query.obj	431cf52a89123357
+26	8789	7174194620548958	C:/Users/swann/Tests_indProject/pointMLP-pytorch/pointnet2_ops_lib/build/temp.win-amd64-cpython-39/Release/pointnet2_ops/_ext-src/src/interpolate.obj	eea6e88f4ecbe348
+19	8821	7174194620890362	C:/Users/swann/Tests_indProject/pointMLP-pytorch/pointnet2_ops_lib/build/temp.win-amd64-cpython-39/Release/pointnet2_ops/_ext-src/src/group_points.obj	3fbf4686789ea448
+34	8891	7174194621581682	C:/Users/swann/Tests_indProject/pointMLP-pytorch/pointnet2_ops_lib/build/temp.win-amd64-cpython-39/Release/pointnet2_ops/_ext-src/src/sampling.obj	e649674eb727e07a
+17	8899	7174194621676755	C:/Users/swann/Tests_indProject/pointMLP-pytorch/pointnet2_ops_lib/build/temp.win-amd64-cpython-39/Release/pointnet2_ops/_ext-src/src/bindings.obj	bc935cb5202eb84e
+11	26079	7174194793207569	C:/Users/swann/Tests_indProject/pointMLP-pytorch/pointnet2_ops_lib/build/temp.win-amd64-cpython-39/Release/pointnet2_ops/_ext-src/src/ball_query_gpu.obj	482812784bca21ea
+22	26098	7174194793406209	C:/Users/swann/Tests_indProject/pointMLP-pytorch/pointnet2_ops_lib/build/temp.win-amd64-cpython-39/Release/pointnet2_ops/_ext-src/src/group_points_gpu.obj	c0823e2332535808
+30	26454	7174194796970435	C:/Users/swann/Tests_indProject/pointMLP-pytorch/pointnet2_ops_lib/build/temp.win-amd64-cpython-39/Release/pointnet2_ops/_ext-src/src/interpolate_gpu.obj	fa70f0b932ca62e9
+38	28050	7174194812837247	C:/Users/swann/Tests_indProject/pointMLP-pytorch/pointnet2_ops_lib/build/temp.win-amd64-cpython-39/Release/pointnet2_ops/_ext-src/src/sampling_gpu.obj	8a7592c567c7973a
