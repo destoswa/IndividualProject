@@ -1,0 +1,15 @@
+Entraînement PointTransformer - different models:
+Menghao:
+- Training time: 00:06:07
+- Testing time : 00:01:08
+
+Hengshuang:
+- Training time: 03:23:30
+- Testing time : 00:02:22
+
+Nico:
+- Training time: 02:34:55
+- Testing time : 00:24:06
+
+
+Dataset: 0.8 * 65'000 .pcd files -> 6.41Go
