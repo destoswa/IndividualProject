@@ -1,0 +1,12 @@
+Namespace(gpu=2, model='3dmfv_net_cls', log_dir='log/modelnet40/3dmfv_net_cls/grid5_log_trial/49', num_point=1024, max_epoch=1, batch_size=64, learning_rate=0.001, momentum=0.9, optimizer='adam', decay_step=200000, decay_rate=0.7, weight_decay=0.0, gmm_type='grid', num_gaussians=5, gmm_variance=0.04)
+augmentation RSTJ = (False, True, True, True, False)**** EPOCH 000 ****
+----0-----
+mean loss: 2.978922
+accuracy: 0.284668
+----0-----
+eval mean loss: 2.436301
+eval accuracy: 0.343750
+eval avg class acc: 0.213182
+Model saved in file: log/modelnet40/3dmfv_net_cls/grid5_log_trial/49\model.ckpt
+Best test accuracy: 0.343750
+Best test class accuracy: 0.213182
