@@ -11,6 +11,7 @@ import tensorflow as tf
 print(tf.config.list_physical_devices('GPU'))
 import pickle
 import tqdm
+import open3d as o3d
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
@@ -24,7 +25,7 @@ import provider
 
 # ModelNet40 official train/test split. MOdelNet10 requires separate downloading and sampling.
 MAX_N_POINTS = 2048
-NUM_CLASSES = 40
+NUM_CLASSES = 3
 """TRAIN_FILES = provider.getDataFiles( \
     os.path.join(BASE_DIR, 'data/modelnet'+str(NUM_CLASSES)+'_ply_hdf5_'+ str(MAX_N_POINTS)+ '/train_files.txt'))
 TEST_FILES = provider.getDataFiles(\
@@ -40,7 +41,8 @@ print( "Loading Modelnet" + str(NUM_CLASSES))
 #Execute
 #python train_cls.py  --gpu=0 --log_dir='log' --batch_size=64 --num_point=1024 --num_gaussians=8 --gmm_variance=0.0156 --gmm_type='grid' --learning_rate=0.001  --model='voxnet_pfv' --max_epoch=200 --momentum=0.9 --optimizer='adam' --decay_step=200000  --weight_decay=0.0 --decay_rate=0.7
 
-augment_rotation, augment_scale, augment_translation, augment_jitter, augment_outlier = (False, True, True, True, False)
+#augment_rotation, augment_scale, augment_translation, augment_jitter, augment_outlier = (False, True, True, True, False)
+augment_rotation, augment_scale, augment_translation, augment_jitter, augment_outlier = (False, False, False, False, False)
 
 parser = argparse.ArgumentParser()
 #Parameters for learning
@@ -48,7 +50,7 @@ parser.add_argument('--gpu', type=int, default=2, help='GPU to use [default: GPU
 parser.add_argument('--model', default='3dmfv_net_cls', help='Model name [default: 3dmfv_net_cls]')
 parser.add_argument('--log_dir', default='log_trial', help='Log dir [default: log]')
 parser.add_argument('--num_point', type=int, default=1024, help='Point Number [256/512/1024/2048] [default: 1024]')
-parser.add_argument('--max_epoch', type=int, default=1, help='Epoch to run [default: 200]')
+parser.add_argument('--max_epoch', type=int, default=2, help='Epoch to run [default: 200]')
 parser.add_argument('--batch_size', type=int, default=64, help='Batch Size during training [default: 64]')
 parser.add_argument('--learning_rate', type=float, default=0.001, help='Initial learning rate [default: 0.001]')
 parser.add_argument('--momentum', type=float, default=0.9, help='Initial learning rate [default: 0.9]')
@@ -106,7 +108,7 @@ pickle.dump(FLAGS, open( os.path.join(LOG_DIR, 'parameters.p'), "wb" ) )
 
 LOG_FOUT = open(os.path.join(LOG_DIR, 'log_train.txt'), 'w')
 LOG_FOUT.write(str(FLAGS)+'\n')
-LOG_FOUT.write("augmentation RSTJ = " + str((augment_rotation, augment_scale, augment_translation, augment_jitter, augment_outlier))) #log augmentaitons
+LOG_FOUT.write("augmentation RSTJ = " + str((augment_rotation, augment_scale, augment_translation, augment_jitter, augment_outlier)))   # log augmentations
 
 FAIL_CASES_FOUT = open(os.path.join(LOG_DIR, 'fail_cases.txt'), 'w')
 
@@ -247,10 +249,11 @@ def train_one_epoch(sess, ops, gmm, train_writer):
     # points_idx = range(0,NUM_POINT)
     """points_idx = np.random.choice(range(0, 2048), NUM_POINT)
     current_data = current_data[:, points_idx, :]"""
-    current_data, current_label, _ = provider.shuffle_data(current_data, np.squeeze(current_label))
     current_label = np.squeeze(current_label)
+    current_data, current_label, _ = provider.shuffle_data(current_data, current_label)
 
-    file_size = current_data.shape[0]
+    #file_size = current_data.shape[0]
+    file_size = len(current_data)
     num_batches = file_size / BATCH_SIZE
 
     total_correct = 0
@@ -261,9 +264,19 @@ def train_one_epoch(sess, ops, gmm, train_writer):
         start_idx = batch_idx * BATCH_SIZE
         end_idx = (batch_idx + 1) * BATCH_SIZE
 
-        # Augment batched point clouds by rotation and jittering
+        # Creation of fv for each file:
+        fv = np.zeros((1, 7*125))
+        print(f"Extracting data from batch {batch_idx}/{int(num_batches)} and creation of fisher vectors...")
+        for file in current_data[start_idx:end_idx]:
+            pcd = o3d.io.read_point_cloud('./data/modeltrees/' + file.split('_')[0] + '/' + file)
+            point_set = np.asarray(pcd.points)
+            fv_el = utils.get_fisher_vectors(point_set, gmm, normalization=True).reshape((1, -1))
+            fv = np.concatenate((fv, fv_el), axis=0)
+        fv = np.delete(fv, 0, 0)
 
-        augmented_data = current_data[start_idx:end_idx, :, :]
+
+        # Augment batched point clouds by rotation and jittering
+        """augmented_data = current_data[start_idx:end_idx, :, :]
         if augment_scale:
             augmented_data = provider.scale_point_cloud(augmented_data, smin=0.66, smax=1.5)
         if augment_rotation:
@@ -274,9 +287,9 @@ def train_one_epoch(sess, ops, gmm, train_writer):
             augmented_data = provider.jitter_point_cloud(augmented_data, sigma=0.01,
                                                     clip=0.05)  # default sigma=0.01, clip=0.05
         if augment_outlier:
-            augmented_data = provider.insert_outliers_to_point_cloud(augmented_data, outlier_ratio=0.02)
+            augmented_data = provider.insert_outliers_to_point_cloud(augmented_data, outlier_ratio=0.02)"""
 
-        feed_dict = {ops['points_pl']: augmented_data,
+        feed_dict = {ops['fv_pl']: fv,
                      ops['labels_pl']: current_label[start_idx:end_idx],
                      ops['w_pl']: gmm.weights_,
                      ops['mu_pl']: gmm.means_,
@@ -313,49 +326,65 @@ def eval_one_epoch(sess, ops, gmm, test_writer):
     # points_idx = np.random.choice(range(0, 2048), NUM_POINT)
     points_idx = range(NUM_POINT)
 
-    for fn in range(len(TEST_FILES)):
-        log_string('----' + str(fn) + '-----')
-        current_data, current_label = provider.loadDataFile(TEST_FILES[fn], compensate=False)
-        current_data = current_data[:, points_idx, :]
-        current_label = np.squeeze(current_label)
+    #for fn in range(len(TEST_FILES)):
+    #log_string('----' + str(fn) + '-----')
 
-        file_size = current_data.shape[0]
-        num_batches = int(file_size / BATCH_SIZE)
+    """current_data, current_label = provider.loadDataFile(TEST_FILES[fn], compensate=False)
+    current_data = current_data[:, points_idx, :]
+    current_label = np.squeeze(current_label)"""
+    current_data, current_label = provider.loadDataFile(TEST_FILES, compensate=False)
+    current_label = np.squeeze(current_label)
+    current_data, current_label, _ = provider.shuffle_data(current_data, current_label)
 
-        for batch_idx in range(num_batches):
-            start_idx = batch_idx * BATCH_SIZE
-            end_idx = (batch_idx + 1) * BATCH_SIZE
+    #file_size = current_data.shape[0]
+    file_size = len(current_data)
+    num_batches = int(file_size / BATCH_SIZE)
 
-            feed_dict = {ops['points_pl']: current_data[start_idx:end_idx, :, :] ,
-                         ops['labels_pl']: current_label[start_idx:end_idx],
-                         ops['w_pl']: gmm.weights_,
-                         ops['mu_pl']: gmm.means_,
-                         ops['sigma_pl']: np.sqrt(gmm.covariances_),
-                         ops['is_training_pl']: is_training}
-            summary, step, loss_val, pred_val = sess.run([ops['merged'], ops['step'],
-                                                          ops['loss'], ops['pred']], feed_dict=feed_dict)
-            test_writer.add_summary(summary, step)
-            pred_val = np.argmax(pred_val, 1)
-            correct = np.sum(pred_val == current_label[start_idx:end_idx])
+    for batch_idx in range(num_batches):
+        start_idx = batch_idx * BATCH_SIZE
+        end_idx = (batch_idx + 1) * BATCH_SIZE
 
-            #Find the fail cases
-            batch_current_label = current_label[start_idx:end_idx]
-            false_idx = pred_val != batch_current_label
-            fail_cases_true_labels = batch_current_label[np.where(false_idx)]  if batch_idx==0 else np.concatenate([fail_cases_true_labels,batch_current_label[np.where(false_idx)]] )
-            fail_cases_false_labes = pred_val[np.where(false_idx)]  if batch_idx==0 else np.concatenate([fail_cases_false_labes, pred_val[np.where(false_idx)]])
-            fail_cases_idx = false_idx if batch_idx == 0 else np.concatenate([fail_cases_idx, false_idx])
+        # Creation of fv for each file:
+        fv = np.zeros((1, 7 * 125))
+        print(f"Extracting data from batch {batch_idx}/{int(num_batches)} and creation of fisher vectors...")
+        for file in current_data[start_idx:end_idx]:
+            pcd = o3d.io.read_point_cloud('./data/modeltrees/' + file.split('_')[0] + '/' + file)
+            point_set = np.asarray(pcd.points)
+            fv_el = utils.get_fisher_vectors(point_set, gmm, normalization=True).reshape((1, -1))
+            fv = np.concatenate((fv, fv_el), axis=0)
+        fv = np.delete(fv, 0, 0)
 
-            total_correct += correct
-            total_seen += BATCH_SIZE
-            loss_sum += (loss_val * BATCH_SIZE)
-            for i in range(start_idx, end_idx):
-                l = current_label[i]
-                total_seen_class[l] += 1
-                total_correct_class[l] += (pred_val[i - start_idx] == l)
+        feed_dict = {ops['fv_pl']: fv,
+                     ops['labels_pl']: current_label[start_idx:end_idx],
+                     ops['w_pl']: gmm.weights_,
+                     ops['mu_pl']: gmm.means_,
+                     ops['sigma_pl']: np.sqrt(gmm.covariances_),
+                     ops['is_training_pl']: is_training}
+        summary, step, loss_val, pred_val = sess.run([ops['merged'], ops['step'],
+                                                      ops['loss'], ops['pred']], feed_dict=feed_dict)
+        test_writer.add_summary(summary, step)
+        pred_val = np.argmax(pred_val, 1)
+        correct = np.sum(pred_val == current_label[start_idx:end_idx])
 
-        fail_cases_true_labels_final.append(fail_cases_true_labels)
-        fail_cases_false_labes_final.append(fail_cases_false_labes)
-        fail_cases_idx_final.append(fail_cases_idx)
+        #Find the fail cases
+        batch_current_label = current_label[start_idx:end_idx]
+        false_idx = pred_val != batch_current_label
+        fail_cases_true_labels = batch_current_label[np.where(false_idx)]  if batch_idx==0 else np.concatenate([fail_cases_true_labels,batch_current_label[np.where(false_idx)]] )
+        fail_cases_false_labes = pred_val[np.where(false_idx)]  if batch_idx==0 else np.concatenate([fail_cases_false_labes, pred_val[np.where(false_idx)]])
+        fail_cases_idx = false_idx if batch_idx == 0 else np.concatenate([fail_cases_idx, false_idx])
+
+        total_correct += correct
+        total_seen += BATCH_SIZE
+        loss_sum += (loss_val * BATCH_SIZE)
+        for i in range(start_idx, end_idx):
+            l = current_label[i]
+            total_seen_class[l] += 1
+            total_correct_class[l] += (pred_val[i - start_idx] == l)
+
+    fail_cases_true_labels_final.append(fail_cases_true_labels)
+    fail_cases_false_labes_final.append(fail_cases_false_labes)
+    fail_cases_idx_final.append(fail_cases_idx)
+
     acc = total_correct / float(total_seen)
     acc_avg_cls =  np.mean(np.array(total_correct_class) / np.array(total_seen_class, dtype=float))
     log_string('eval mean loss: %f' % (loss_sum / float(total_seen)))

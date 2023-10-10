@@ -29,7 +29,9 @@ def shuffle_data(data, labels):
     """
     idx = np.arange(len(labels))
     np.random.shuffle(idx)
-    return data[idx, ...], labels[idx], idx
+    data = [data[i] for i in idx]
+    #return data[idx, ...], labels[idx], idx
+    return data, labels[idx], idx
 
 
 def rotate_point_cloud(batch_data):
@@ -242,11 +244,11 @@ def load_h5(h5_filename, compensate=False, unify=False):
 
 def labels_text_to_int(x):
     if x == 'garbadge':
-        return 0
+        return [0]
     elif x == 'multiple':
-        return 1
+        return [1]
     elif x == 'single':
-        return 2
+        return [2]
 
 
 def load_txt(filename, compensate, unify):
