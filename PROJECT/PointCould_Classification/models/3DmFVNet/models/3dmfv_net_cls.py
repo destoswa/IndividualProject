@@ -21,19 +21,19 @@ def placeholder_inputs(batch_size, n_points, gmm):
     w_pl = tf.compat.v1.placeholder(tf.float32, shape=(n_gaussians))
     mu_pl = tf.compat.v1.placeholder(tf.float32, shape=(n_gaussians, D))
     sigma_pl = tf.compat.v1.placeholder(tf.float32, shape=(n_gaussians, D)) # diagonal
-    points_pl = tf.compat.v1.placeholder(tf.float32, shape=(batch_size, n_points, D))
+    #points_pl = tf.compat.v1.placeholder(tf.float32, shape=(batch_size, n_points, D))
+    fv_pl = tf.compat.v1.placeholder(tf.float32, shape=(batch_size, 7*n_gaussians))
 
-    return points_pl, labels_pl, w_pl, mu_pl, sigma_pl
+    return fv_pl, labels_pl, w_pl, mu_pl, sigma_pl
 
 
-def get_model(points, w, mu, sigma, is_training, bn_decay=None, weigth_decay=0.005, add_noise=False, num_classes=40):
+def get_model(fv, w, mu, sigma, is_training, bn_decay=None, weigth_decay=0.005, add_noise=False, num_classes=40):
     """ Classification PointNet, input is BxNx3, output Bx40 """
-    batch_size = points.get_shape()[0]
-    n_points = points.get_shape()[1]
+    batch_size = fv.get_shape()[0]
     n_gaussians = w.shape[0]
     res = int(np.round(np.power(n_gaussians, 1.0/3.0)))
 
-    fv = tf_util.get_3dmfv(points, w, mu, sigma, flatten=False)
+    #fv = tf_util.get_3dmfv(points, w, mu, sigma, flatten=False)
 
     if add_noise:
         noise = tf.cond(is_training,

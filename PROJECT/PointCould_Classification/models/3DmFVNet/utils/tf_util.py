@@ -587,7 +587,7 @@ def get_3dmfv(points, w, mu, sigma, flatten=True):
     :return: fv: B X 7*n_gaussians tensor of the fisher vector
     """
     n_batches = points.shape[0]
-    n_points = points.shape[1]
+    #n_points = points.shape[1]
     n_gaussians = mu.shape[0]
     D = mu.shape[1]
 
@@ -602,7 +602,7 @@ def get_3dmfv(points, w, mu, sigma, flatten=True):
     #Compute derivatives
     w_per_batch_per_d = tf.tile(tf.expand_dims(tf.expand_dims(w, 0), -1), [n_batches, 1, 3*D]) #n_batches X n_gaussians X 128*D (D for min and D for max)
 
-    #Define multivariate noramal distributions
+    #Define multivariate normal distributions
     #mvn = tf.compat.v1.estimator.distributions.MultivariateNormalDiag(loc=batch_mu, scale_diag=batch_sig)
     mvn = tfp.distributions.MultivariateNormalDiag(loc=batch_mu, scale_diag=batch_sig)
     #Compute probability per point

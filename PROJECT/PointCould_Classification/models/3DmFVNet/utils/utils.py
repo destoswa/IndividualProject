@@ -118,7 +118,7 @@ def get_2d_grid_gmm(subdivisions=[5, 5], variance=0.04):
     return gmm
 
 
-def get_fisher_vectors(points,gmm, normalization=True):
+def get_fisher_vectors(points, gmm, normalization=True):
     """
     Compute the fisher vector representation of a point cloud or a batch of point clouds
 
@@ -208,7 +208,7 @@ def fisher_vector(xx, gmm, normalization=True):
     return np.hstack((d_pi, d_mu.flatten(), d_sigma.flatten()))
 
 
-def fisher_vector_per_point( xx, gmm):
+def fisher_vector_per_point(xx, gmm):
     """
     see notes for above function - performs operations per point
 

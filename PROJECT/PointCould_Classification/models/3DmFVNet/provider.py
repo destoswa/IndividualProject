@@ -240,6 +240,23 @@ def load_h5(h5_filename, compensate=False, unify=False):
     return (data, label)
 
 
+def labels_text_to_int(x):
+    if x == 'garbadge':
+        return 0
+    elif x == 'multiple':
+        return 1
+    elif x == 'single':
+        return 2
+
+
+def load_txt(filename, compensate, unify):
+    data = getDataFiles(os.path.join(filename))
+    label = [el.split('_')[0] for el in data]   # get the first element in the file name (which is the label)
+    label = list(map(labels_text_to_int, label))    # replace the label name by the label code
+
+    return (data, label)
+
+
 def replace_labels(numbers, problem_numbers, alternative_numbers):
     # Replace values
     problem_numbers = np.asarray(problem_numbers)
@@ -253,7 +270,8 @@ def replace_labels(numbers, problem_numbers, alternative_numbers):
 
 
 def loadDataFile(filename, compensate=False, unify=False):
-    return load_h5(filename, compensate, unify)
+    #return load_h5(filename, compensate, unify)
+    return load_txt(filename, compensate, unify)
 
 
 def load_single_model(model_idx = 0,test_train = 'train', file_idxs=0, num_points = 1024):
@@ -327,3 +345,7 @@ def load_h5_data_label_seg(h5_filename):
     label = f['label'][:]
     seg = f['pid'][:]
     return (data, label, seg)
+
+
+if __name__ == '__main__':
+    data, label = loadDataFile('./data/modeltrees/modeltrees_train.txt')

@@ -25,12 +25,15 @@ import provider
 # ModelNet40 official train/test split. MOdelNet10 requires separate downloading and sampling.
 MAX_N_POINTS = 2048
 NUM_CLASSES = 40
-TRAIN_FILES = provider.getDataFiles( \
+"""TRAIN_FILES = provider.getDataFiles( \
     os.path.join(BASE_DIR, 'data/modelnet'+str(NUM_CLASSES)+'_ply_hdf5_'+ str(MAX_N_POINTS)+ '/train_files.txt'))
 TEST_FILES = provider.getDataFiles(\
     os.path.join(BASE_DIR, 'data/modelnet'+str(NUM_CLASSES)+'_ply_hdf5_'+ str(MAX_N_POINTS)+ '/test_files.txt'))
 LABEL_MAP = provider.getDataFiles(\
-    os.path.join(BASE_DIR, 'data/modelnet'+str(NUM_CLASSES)+'_ply_hdf5_'+ str(MAX_N_POINTS)+ '/shape_names.txt'))
+    os.path.join(BASE_DIR, 'data/modelnet'+str(NUM_CLASSES)+'_ply_hdf5_'+ str(MAX_N_POINTS)+ '/shape_names.txt'))"""
+TRAIN_FILES = 'data/modeltrees/modeltrees_train.txt'
+TEST_FILES = 'data/modeltrees/modeltrees_test.txt'
+LABEL_MAP = 'data/modeltrees/modeltrees_shape_names.txt'
 
 print( "Loading Modelnet" + str(NUM_CLASSES))
 
@@ -152,7 +155,7 @@ def train(gmm):
     # Build Graph, train and classify
     with tf.Graph().as_default():
         with tf.device('/gpu:'+str(GPU_INDEX)):
-            points_pl, labels_pl, w_pl, mu_pl, sigma_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT, gmm )
+            fv_pl, labels_pl, w_pl, mu_pl, sigma_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT, gmm )
             is_training_pl = tf.compat.v1.placeholder(tf.bool, shape=())
 
             # Note the global_step=batch parameter to minimize.
@@ -162,7 +165,8 @@ def train(gmm):
             tf.compat.v1.summary.scalar('bn_decay', bn_decay)
 
             # Get model and loss
-            pred, fv = MODEL.get_model(points_pl, w_pl, mu_pl, sigma_pl, is_training_pl, bn_decay=bn_decay, weigth_decay=WEIGHT_DECAY, add_noise=False, num_classes=NUM_CLASSES)
+            #fv_in = utils.fisher_vector(xx, gmm)
+            pred, fv = MODEL.get_model(fv_pl, w_pl, mu_pl, sigma_pl, is_training_pl, bn_decay=bn_decay, weigth_decay=WEIGHT_DECAY, add_noise=False, num_classes=NUM_CLASSES)
             loss = MODEL.get_loss(pred, labels_pl)
             tf.compat.v1.summary.scalar('loss', loss)
 
@@ -195,7 +199,7 @@ def train(gmm):
         init = tf.compat.v1.global_variables_initializer()
         sess.run(init, {is_training_pl: True})
 
-        ops = {'points_pl': points_pl,
+        ops = {'fv_pl': fv_pl,
                'labels_pl': labels_pl,
                'w_pl': w_pl,
                'mu_pl': mu_pl,
@@ -236,60 +240,61 @@ def train_one_epoch(sess, ops, gmm, train_writer):
     train_file_idxs = np.arange(0, len(TRAIN_FILES))
     np.random.shuffle(train_file_idxs)
 
-    for fn in range(len(TRAIN_FILES)):
-        log_string('----' + str(fn) + '-----')
-        current_data, current_label = provider.loadDataFile(TRAIN_FILES[train_file_idxs[fn]], compensate=False)
-        # points_idx = range(0,NUM_POINT)
-        points_idx = np.random.choice(range(0, 2048), NUM_POINT)
-        current_data = current_data[:, points_idx, :]
-        current_data, current_label, _ = provider.shuffle_data(current_data, np.squeeze(current_label))
-        current_label = np.squeeze(current_label)
+    #for fn in range(len(TRAIN_FILES)):
+    #log_string('----' + str(fn) + '-----')
+    current_data, current_label = provider.loadDataFile(TRAIN_FILES, compensate=False)
 
-        file_size = current_data.shape[0]
-        num_batches = file_size / BATCH_SIZE
+    # points_idx = range(0,NUM_POINT)
+    """points_idx = np.random.choice(range(0, 2048), NUM_POINT)
+    current_data = current_data[:, points_idx, :]"""
+    current_data, current_label, _ = provider.shuffle_data(current_data, np.squeeze(current_label))
+    current_label = np.squeeze(current_label)
 
-        total_correct = 0
-        total_seen = 0
-        loss_sum = 0
+    file_size = current_data.shape[0]
+    num_batches = file_size / BATCH_SIZE
 
-        for batch_idx in range(int(num_batches)):
-            start_idx = batch_idx * BATCH_SIZE
-            end_idx = (batch_idx + 1) * BATCH_SIZE
+    total_correct = 0
+    total_seen = 0
+    loss_sum = 0
 
-            # Augment batched point clouds by rotation and jittering
+    for batch_idx in range(int(num_batches)):
+        start_idx = batch_idx * BATCH_SIZE
+        end_idx = (batch_idx + 1) * BATCH_SIZE
 
-            augmented_data = current_data[start_idx:end_idx, :, :]
-            if augment_scale:
-                augmented_data = provider.scale_point_cloud(augmented_data, smin=0.66, smax=1.5)
-            if augment_rotation:
-                augmented_data = provider.rotate_point_cloud(augmented_data)
-            if augment_translation:
-                augmented_data = provider.translate_point_cloud(augmented_data, tval = 0.2)
-            if augment_jitter:
-                augmented_data = provider.jitter_point_cloud(augmented_data, sigma=0.01,
-                                                        clip=0.05)  # default sigma=0.01, clip=0.05
-            if augment_outlier:
-                augmented_data = provider.insert_outliers_to_point_cloud(augmented_data, outlier_ratio=0.02)
+        # Augment batched point clouds by rotation and jittering
 
-            feed_dict = {ops['points_pl']: augmented_data,
-                         ops['labels_pl']: current_label[start_idx:end_idx],
-                         ops['w_pl']: gmm.weights_,
-                         ops['mu_pl']: gmm.means_,
-                         ops['sigma_pl']: np.sqrt(gmm.covariances_),
-                         ops['is_training_pl']: is_training, }
-            summary, step, _, loss_val, pred_val = sess.run([ops['merged'], ops['step'],
-                                                             ops['train_op'], ops['loss'], ops['pred']],
-                                                            feed_dict=feed_dict)
+        augmented_data = current_data[start_idx:end_idx, :, :]
+        if augment_scale:
+            augmented_data = provider.scale_point_cloud(augmented_data, smin=0.66, smax=1.5)
+        if augment_rotation:
+            augmented_data = provider.rotate_point_cloud(augmented_data)
+        if augment_translation:
+            augmented_data = provider.translate_point_cloud(augmented_data, tval = 0.2)
+        if augment_jitter:
+            augmented_data = provider.jitter_point_cloud(augmented_data, sigma=0.01,
+                                                    clip=0.05)  # default sigma=0.01, clip=0.05
+        if augment_outlier:
+            augmented_data = provider.insert_outliers_to_point_cloud(augmented_data, outlier_ratio=0.02)
 
-            train_writer.add_summary(summary, step)
-            pred_val = np.argmax(pred_val, 1)
-            correct = np.sum(pred_val == current_label[start_idx:end_idx])
-            total_correct += correct
-            total_seen += BATCH_SIZE
-            loss_sum += loss_val
+        feed_dict = {ops['points_pl']: augmented_data,
+                     ops['labels_pl']: current_label[start_idx:end_idx],
+                     ops['w_pl']: gmm.weights_,
+                     ops['mu_pl']: gmm.means_,
+                     ops['sigma_pl']: np.sqrt(gmm.covariances_),
+                     ops['is_training_pl']: is_training, }
+        summary, step, _, loss_val, pred_val = sess.run([ops['merged'], ops['step'],
+                                                         ops['train_op'], ops['loss'], ops['pred']],
+                                                        feed_dict=feed_dict)
 
-        log_string('mean loss: %f' % (loss_sum / float(num_batches)))
-        log_string('accuracy: %f' % (total_correct / float(total_seen)))
+        train_writer.add_summary(summary, step)
+        pred_val = np.argmax(pred_val, 1)
+        correct = np.sum(pred_val == current_label[start_idx:end_idx])
+        total_correct += correct
+        total_seen += BATCH_SIZE
+        loss_sum += loss_val
+
+    log_string('mean loss: %f' % (loss_sum / float(num_batches)))
+    log_string('accuracy: %f' % (total_correct / float(total_seen)))
 
 
 def eval_one_epoch(sess, ops, gmm, test_writer):

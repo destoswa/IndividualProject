@@ -19,9 +19,9 @@ def preprocess(source_data, frac_train=.8):
             num_testing_samples += num_files - num_train
             list_train = os.listdir(source_data + "/" + folder)[0:num_train]
             list_test = os.listdir(source_data + "/" + folder)[num_train::]
-            with open(f'{source_data}/modeltrees_train.txt', 'w') as f:
+            with open(f'{source_data}/modeltrees_train.txt', 'a') as f:
                 f.write("\n".join(list_train))
-            with open(f'{source_data}/modeltrees_test.txt', 'w') as f:
+            with open(f'{source_data}/modeltrees_test.txt', 'a') as f:
                 f.write("\n".join(list_test))
 
     print(f"Final partition for training : {num_training_samples}")
