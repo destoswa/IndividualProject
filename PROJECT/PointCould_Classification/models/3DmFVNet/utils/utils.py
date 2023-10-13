@@ -77,7 +77,7 @@ def get_3d_grid_gmm(subdivisions=[5,5,5], variance=0.04):
     n_gaussians = np.prod(np.array(subdivisions))
     step = [1.0/(subdivisions[0]),  1.0/(subdivisions[1]),  1.0/(subdivisions[2])]
 
-    means = np.mgrid[ step[0]-1: 1.0-step[0]: complex(0, subdivisions[0]),
+    means = np.mgrid[step[0]-1: 1.0-step[0]: complex(0, subdivisions[0]),
                       step[1]-1: 1.0-step[1]: complex(0, subdivisions[1]),
                       step[2]-1: 1.0-step[2]: complex(0, subdivisions[2])]
     means = np.reshape(means, [3, -1]).T

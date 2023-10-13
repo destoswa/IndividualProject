@@ -2,6 +2,7 @@ import os
 import sys
 import numpy as np
 import h5py
+import csv
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(BASE_DIR)
 import tensorflow as tf
@@ -251,11 +252,15 @@ def labels_text_to_int(x):
         return [2]
 
 
-def load_txt(filename, compensate, unify):
-    data = getDataFiles(os.path.join(filename))
+def load_csv(filename, compensate, unify):
+    file = open(filename, "r")
+    lst_data = list(csv.reader(file, delimiter=";"))
+    file.close()
+    data = [row[0] for row in lst_data[1::]]
+    label = np.array([int(row[1]) for row in lst_data[1::]])
+    """data = getDataFiles(os.path.join(filename))
     label = [el.split('_')[0] for el in data]   # get the first element in the file name (which is the label)
-    label = list(map(labels_text_to_int, label))    # replace the label name by the label code
-
+    label = list(map(labels_text_to_int, label))    # replace the label name by the label code"""
     return (data, label)
 
 
@@ -273,7 +278,7 @@ def replace_labels(numbers, problem_numbers, alternative_numbers):
 
 def loadDataFile(filename, compensate=False, unify=False):
     #return load_h5(filename, compensate, unify)
-    return load_txt(filename, compensate, unify)
+    return load_csv(filename, compensate, unify)
 
 
 def load_single_model(model_idx = 0,test_train = 'train', file_idxs=0, num_points = 1024):
@@ -350,4 +355,4 @@ def load_h5_data_label_seg(h5_filename):
 
 
 if __name__ == '__main__':
-    data, label = loadDataFile('./data/modeltrees/modeltrees_train.txt')
+    data, label = loadDataFile('./data/modeltrees/modeltrees_train.csv')

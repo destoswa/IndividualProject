@@ -1,0 +1,17 @@
+True:[0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0 1 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1
+ 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+ 0 0 1 0 0 1 0 0 1 1 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 0 0 0 0 0]
+Pred:[2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+ 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+ 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2]
+Idx:[ True  True  True  True  True  True  True  True  True False  True False
+  True  True  True  True False  True  True  True False  True False  True
+ False  True  True  True  True  True  True  True  True  True  True  True
+  True  True  True False  True  True  True  True  True  True False  True
+  True  True  True  True  True False  True  True False  True  True False
+ False  True  True  True  True  True  True  True  True False  True  True
+  True  True  True  True  True  True  True  True  True False  True  True
+  True  True False  True  True  True  True  True  True  True  True  True
+  True  True  True  True  True  True  True False  True  True False  True
+  True  True  True  True  True  True  True  True  True  True False  True
+  True False  True False  True  True False  True]

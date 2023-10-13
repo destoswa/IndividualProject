@@ -1,0 +1,125 @@
+Namespace(gpu=2, model='3dmfv_net_cls', log_dir='log/modelnet3/3dmfv_net_cls/grid5_log_trial/32', num_point=1024, max_epoch=20, batch_size=64, learning_rate=0.001, momentum=0.9, optimizer='adam', decay_step=200000, decay_rate=0.7, weight_decay=0.0, gmm_type='grid', num_gaussians=5, gmm_variance=0.04)
+augmentation RSTJ = (False, False, False, False, False)**** EPOCH 000 ****
+mean loss: 1.359482
+accuracy: 0.389062
+eval mean loss: 3.552932
+eval accuracy: 0.125000
+eval avg class acc: 0.333333
+Model saved in file: log/modelnet3/3dmfv_net_cls/grid5_log_trial/32\model.ckpt
+**** EPOCH 001 ****
+mean loss: 0.831313
+accuracy: 0.643750
+eval mean loss: 3.144965
+eval accuracy: 0.062500
+eval avg class acc: 0.333333
+**** EPOCH 002 ****
+mean loss: 0.612895
+accuracy: 0.775000
+eval mean loss: 2.583171
+eval accuracy: 0.125000
+eval avg class acc: 0.333333
+**** EPOCH 003 ****
+mean loss: 0.532782
+accuracy: 0.793750
+eval mean loss: 1.665349
+eval accuracy: 0.132812
+eval avg class acc: 0.333333
+**** EPOCH 004 ****
+mean loss: 0.477750
+accuracy: 0.817187
+eval mean loss: 2.833392
+eval accuracy: 0.171875
+eval avg class acc: 0.333333
+**** EPOCH 005 ****
+mean loss: 0.433726
+accuracy: 0.837500
+eval mean loss: 2.620038
+eval accuracy: 0.140625
+eval avg class acc: 0.333333
+**** EPOCH 006 ****
+mean loss: 0.392150
+accuracy: 0.853125
+eval mean loss: 4.054266
+eval accuracy: 0.148438
+eval avg class acc: 0.333333
+**** EPOCH 007 ****
+mean loss: 0.338411
+accuracy: 0.857812
+eval mean loss: 2.532163
+eval accuracy: 0.093750
+eval avg class acc: 0.333333
+**** EPOCH 008 ****
+mean loss: 0.270356
+accuracy: 0.903125
+eval mean loss: 2.668292
+eval accuracy: 0.093750
+eval avg class acc: 0.333333
+**** EPOCH 009 ****
+mean loss: 0.261136
+accuracy: 0.895312
+eval mean loss: 4.145657
+eval accuracy: 0.148438
+eval avg class acc: 0.333333
+**** EPOCH 010 ****
+mean loss: 0.383900
+accuracy: 0.860938
+eval mean loss: 0.742410
+eval accuracy: 0.765625
+eval avg class acc: 0.333333
+Model saved in file: log/modelnet3/3dmfv_net_cls/grid5_log_trial/32\model.ckpt
+**** EPOCH 011 ****
+mean loss: 0.307506
+accuracy: 0.892188
+eval mean loss: 1.696845
+eval accuracy: 0.093750
+eval avg class acc: 0.333333
+**** EPOCH 012 ****
+mean loss: 0.230204
+accuracy: 0.912500
+eval mean loss: 1.884821
+eval accuracy: 0.156250
+eval avg class acc: 0.333333
+**** EPOCH 013 ****
+mean loss: 0.227869
+accuracy: 0.910937
+eval mean loss: 0.952116
+eval accuracy: 0.781250
+eval avg class acc: 0.333333
+**** EPOCH 014 ****
+mean loss: 0.152710
+accuracy: 0.948438
+eval mean loss: 1.362138
+eval accuracy: 0.164062
+eval avg class acc: 0.333333
+**** EPOCH 015 ****
+mean loss: 0.105105
+accuracy: 0.973437
+eval mean loss: 3.912694
+eval accuracy: 0.125000
+eval avg class acc: 0.333333
+**** EPOCH 016 ****
+mean loss: 0.113212
+accuracy: 0.968750
+eval mean loss: 2.545053
+eval accuracy: 0.148438
+eval avg class acc: 0.333333
+**** EPOCH 017 ****
+mean loss: 0.116319
+accuracy: 0.950000
+eval mean loss: 1.665942
+eval accuracy: 0.148438
+eval avg class acc: 0.333333
+**** EPOCH 018 ****
+mean loss: 0.100588
+accuracy: 0.965625
+eval mean loss: 3.848100
+eval accuracy: 0.148438
+eval avg class acc: 0.333333
+**** EPOCH 019 ****
+mean loss: 0.085590
+accuracy: 0.975000
+eval mean loss: 1.505045
+eval accuracy: 0.125000
+eval avg class acc: 0.333333
+Best test accuracy: 0.781250
+Best test class accuracy: 0.333333

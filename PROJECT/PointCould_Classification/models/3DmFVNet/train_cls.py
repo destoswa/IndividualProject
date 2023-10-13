@@ -11,6 +11,7 @@ import tensorflow as tf
 print(tf.config.list_physical_devices('GPU'))
 import pickle
 import tqdm
+import time
 import open3d as o3d
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -32,8 +33,8 @@ TEST_FILES = provider.getDataFiles(\
     os.path.join(BASE_DIR, 'data/modelnet'+str(NUM_CLASSES)+'_ply_hdf5_'+ str(MAX_N_POINTS)+ '/test_files.txt'))
 LABEL_MAP = provider.getDataFiles(\
     os.path.join(BASE_DIR, 'data/modelnet'+str(NUM_CLASSES)+'_ply_hdf5_'+ str(MAX_N_POINTS)+ '/shape_names.txt'))"""
-TRAIN_FILES = 'data/modeltrees/modeltrees_train.txt'
-TEST_FILES = 'data/modeltrees/modeltrees_test.txt'
+TRAIN_FILES = 'data/modeltrees/modeltrees_train.csv'
+TEST_FILES = 'data/modeltrees/modeltrees_test.csv'
 LABEL_MAP = 'data/modeltrees/modeltrees_shape_names.txt'
 
 print( "Loading Modelnet" + str(NUM_CLASSES))
@@ -50,7 +51,7 @@ parser.add_argument('--gpu', type=int, default=2, help='GPU to use [default: GPU
 parser.add_argument('--model', default='3dmfv_net_cls', help='Model name [default: 3dmfv_net_cls]')
 parser.add_argument('--log_dir', default='log_trial', help='Log dir [default: log]')
 parser.add_argument('--num_point', type=int, default=1024, help='Point Number [256/512/1024/2048] [default: 1024]')
-parser.add_argument('--max_epoch', type=int, default=2, help='Epoch to run [default: 200]')
+parser.add_argument('--max_epoch', type=int, default=200, help='Epoch to run [default: 200]')
 parser.add_argument('--batch_size', type=int, default=64, help='Batch Size during training [default: 64]')
 parser.add_argument('--learning_rate', type=float, default=0.001, help='Initial learning rate [default: 0.001]')
 parser.add_argument('--momentum', type=float, default=0.9, help='Initial learning rate [default: 0.9]')
@@ -249,7 +250,7 @@ def train_one_epoch(sess, ops, gmm, train_writer):
     # points_idx = range(0,NUM_POINT)
     """points_idx = np.random.choice(range(0, 2048), NUM_POINT)
     current_data = current_data[:, points_idx, :]"""
-    current_label = np.squeeze(current_label)
+    #current_label = np.squeeze(current_label)
     current_data, current_label, _ = provider.shuffle_data(current_data, current_label)
 
     #file_size = current_data.shape[0]
@@ -268,8 +269,15 @@ def train_one_epoch(sess, ops, gmm, train_writer):
         fv = np.zeros((1, 7*125))
         print(f"Extracting data from batch {batch_idx}/{int(num_batches)} and creation of fisher vectors...")
         for file in current_data[start_idx:end_idx]:
-            pcd = o3d.io.read_point_cloud('./data/modeltrees/' + file.split('_')[0] + '/' + file)
+            pcd = o3d.io.read_point_cloud('./data/modeltrees/' + file)
             point_set = np.asarray(pcd.points)
+            # center and normalize
+            #point_set -= np.mean(point_set, axis=0)
+            for i in range(3):
+                min = np.min(point_set[:, i])
+                max = np.max(point_set[:, i])
+                point_set[:, i] = (point_set[:, i] - min)/(max - min)
+
             fv_el = utils.get_fisher_vectors(point_set, gmm, normalization=True).reshape((1, -1))
             fv = np.concatenate((fv, fv_el), axis=0)
         fv = np.delete(fv, 0, 0)
@@ -333,7 +341,7 @@ def eval_one_epoch(sess, ops, gmm, test_writer):
     current_data = current_data[:, points_idx, :]
     current_label = np.squeeze(current_label)"""
     current_data, current_label = provider.loadDataFile(TEST_FILES, compensate=False)
-    current_label = np.squeeze(current_label)
+    #current_label = np.squeeze(current_label)
     current_data, current_label, _ = provider.shuffle_data(current_data, current_label)
 
     #file_size = current_data.shape[0]
@@ -348,8 +356,14 @@ def eval_one_epoch(sess, ops, gmm, test_writer):
         fv = np.zeros((1, 7 * 125))
         print(f"Extracting data from batch {batch_idx}/{int(num_batches)} and creation of fisher vectors...")
         for file in current_data[start_idx:end_idx]:
-            pcd = o3d.io.read_point_cloud('./data/modeltrees/' + file.split('_')[0] + '/' + file)
+            pcd = o3d.io.read_point_cloud('./data/modeltrees/' + file)
             point_set = np.asarray(pcd.points)
+            # center and normalize
+            #point_set -= np.mean(point_set, axis=0)
+            for i in range(3):
+                min = np.min(point_set[:, i])
+                max = np.max(point_set[:, i])
+                point_set[:, i] = (point_set[:, i] - min)/(max - min)
             fv_el = utils.get_fisher_vectors(point_set, gmm, normalization=True).reshape((1, -1))
             fv = np.concatenate((fv, fv_el), axis=0)
         fv = np.delete(fv, 0, 0)
@@ -368,9 +382,9 @@ def eval_one_epoch(sess, ops, gmm, test_writer):
 
         #Find the fail cases
         batch_current_label = current_label[start_idx:end_idx]
-        false_idx = pred_val != batch_current_label
-        fail_cases_true_labels = batch_current_label[np.where(false_idx)]  if batch_idx==0 else np.concatenate([fail_cases_true_labels,batch_current_label[np.where(false_idx)]] )
-        fail_cases_false_labes = pred_val[np.where(false_idx)]  if batch_idx==0 else np.concatenate([fail_cases_false_labes, pred_val[np.where(false_idx)]])
+        false_idx = list(pred_val != batch_current_label)
+        fail_cases_true_labels = batch_current_label[np.where(false_idx)] if batch_idx == 0 else np.concatenate([fail_cases_true_labels, batch_current_label[np.where(false_idx)]])
+        fail_cases_false_labes = pred_val[np.where(false_idx)] if batch_idx == 0 else np.concatenate([fail_cases_false_labes, pred_val[np.where(false_idx)]])
         fail_cases_idx = false_idx if batch_idx == 0 else np.concatenate([fail_cases_idx, false_idx])
 
         total_correct += correct
@@ -487,12 +501,17 @@ def export_visualizations(gmm, log_dir):
 
 
 if __name__ == "__main__":
-
+    start_time = time.time()
     gmm = utils.get_3d_grid_gmm(subdivisions=[N_GAUSSIANS, N_GAUSSIANS, N_GAUSSIANS], variance=GMM_VARIANCE)
     pickle.dump(gmm, open(os.path.join(LOG_DIR, 'gmm.p'), "wb"))
     train(gmm)
     #export_visualizations(gmm, LOG_DIR,n_model_limit=None)
 
     LOG_FOUT.close()
-
+    end_time = time.time()
+    delta_time = end_time - start_time
+    n_hours = int(delta_time/3600)
+    n_min = int((delta_time % 3600)/60)
+    n_sec = int(delta_time - n_hours * 3600 - n_min * 60)
+    print(f"TIME TO TRAIN ON {MAX_EPOCH}: {n_hours}:{n_min}:{n_sec}")
 

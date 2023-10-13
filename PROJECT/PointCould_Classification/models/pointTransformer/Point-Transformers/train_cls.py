@@ -83,7 +83,6 @@ def main(args):
         logger.info('No existing model, starting training from scratch...')
         start_epoch = 0
 
-
     if args.optimizer == 'Adam':
         optimizer = torch.optim.Adam(
             classifier.parameters(),
@@ -103,7 +102,7 @@ def main(args):
     best_epoch = 0
     mean_correct = []
 
-    '''TRANING'''
+    '''TRAINING'''
     logger.info('Start training...')
     for epoch in range(start_epoch,args.epoch):
         logger.info('Epoch %d (%d/%s):' % (global_epoch + 1, epoch + 1, args.epoch))
@@ -113,8 +112,8 @@ def main(args):
             points, target = data
             points = points.data.numpy()
             points = provider.random_point_dropout(points)
-            points[:,:, 0:3] = provider.random_scale_point_cloud(points[:,:, 0:3])
-            points[:,:, 0:3] = provider.shift_point_cloud(points[:,:, 0:3])
+            points[:, :, 0:3] = provider.random_scale_point_cloud(points[:, :, 0:3])
+            points[:, :, 0:3] = provider.shift_point_cloud(points[:, :, 0:3])
             points = torch.Tensor(points)
             target = target[:, 0]
 
