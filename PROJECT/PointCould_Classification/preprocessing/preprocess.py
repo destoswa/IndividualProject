@@ -8,7 +8,7 @@ from src.pp_pointMLP import pp_pointMLP
 def preprocess(source_data, frac_train=.8):
     # Create file with different labels:
     with open(f'{source_data}/modeltrees_shape_names.txt', 'w') as f:
-        f.write('garbadge\nmultiple\nsingle')
+        f.write('garbage\nmultiple\nsingle')
 
     # Create references files:
     num_training_samples = 0
@@ -58,9 +58,9 @@ def main():
     do_pp_pointMLP = False
 
     if do_pp_pointMLP:
-        pp_pointMLP("./data", './data_models/pointMLP', .8)
+        pp_pointMLP("./data", './data_models/pointMLP', .6)
 
-    preprocess("./data/modeltrees", .8)
+    preprocess("./data/modeltrees", .6)
 
 
 if __name__ == "__main__":

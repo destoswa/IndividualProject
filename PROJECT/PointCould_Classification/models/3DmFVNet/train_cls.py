@@ -22,6 +22,7 @@ import tf_util
 import visualization
 import utils
 import provider
+from visualize_logs import show_log_train, show_confusion_matrix
 
 
 # ModelNet40 official train/test split. MOdelNet10 requires separate downloading and sampling.
@@ -35,7 +36,7 @@ LABEL_MAP = provider.getDataFiles(\
     os.path.join(BASE_DIR, 'data/modelnet'+str(NUM_CLASSES)+'_ply_hdf5_'+ str(MAX_N_POINTS)+ '/shape_names.txt'))"""
 TRAIN_FILES = 'data/modeltrees/modeltrees_train.csv'
 TEST_FILES = 'data/modeltrees/modeltrees_test.csv'
-LABEL_MAP = 'data/modeltrees/modeltrees_shape_names.txt'
+LABEL_MAP = provider.getDataFiles('data/modeltrees/modeltrees_shape_names.txt')
 
 print( "Loading Modelnet" + str(NUM_CLASSES))
 
@@ -216,11 +217,11 @@ def train(gmm):
                'step': batch}
 
         for epoch in range(MAX_EPOCH):
-            log_string('**** EPOCH %03d ****' % (epoch))
+            log_string('**** EPOCH %03d ****' % (epoch+1))
             sys.stdout.flush()
 
             train_one_epoch(sess, ops, gmm, train_writer)
-            acc, acc_avg_cls = eval_one_epoch(sess, ops, gmm, test_writer)
+            acc, acc_avg_cls = eval_one_epoch(sess, ops, gmm, test_writer, LOG_DIR)
 
             # Save the variables to disk.
             if epoch % 10 == 0:
@@ -233,6 +234,16 @@ def train(gmm):
 
         log_string("Best test accuracy: %f" % MAX_ACCURACY)
         log_string("Best test class accuracy: %f" % MAX_CLASS_ACCURACY)
+
+
+def normalize_points(point_set):
+    for i in range(3):
+        min = np.min(point_set[:, i])
+        max = np.max(point_set[:, i])
+        bar = (max-min)/2
+        point_set[:, i] = (point_set[:, i] - bar - min) / bar
+        #point_set[:, i] = (point_set[:, i]) / (max - min)
+    return point_set
 
 
 def train_one_epoch(sess, ops, gmm, train_writer):
@@ -266,19 +277,19 @@ def train_one_epoch(sess, ops, gmm, train_writer):
         end_idx = (batch_idx + 1) * BATCH_SIZE
 
         # Creation of fv for each file:
-        fv = np.zeros((1, 7*125))
-        print(f"Extracting data from batch {batch_idx}/{int(num_batches)} and creation of fisher vectors...")
+        #fv = np.zeros((1, 7*125))
+        fv = np.zeros((1, 20*125))
+        print(f"Extracting data from batch {batch_idx+1}/{int(num_batches)} and creation of fisher vectors...")
         for file in current_data[start_idx:end_idx]:
             pcd = o3d.io.read_point_cloud('./data/modeltrees/' + file)
             point_set = np.asarray(pcd.points)
             # center and normalize
             #point_set -= np.mean(point_set, axis=0)
-            for i in range(3):
-                min = np.min(point_set[:, i])
-                max = np.max(point_set[:, i])
-                point_set[:, i] = (point_set[:, i] - min)/(max - min)
+            point_set = normalize_points(point_set)
 
-            fv_el = utils.get_fisher_vectors(point_set, gmm, normalization=True).reshape((1, -1))
+            #fv_el = utils.get_fisher_vectors(point_set, gmm, normalization=True).reshape((1, -1))
+            fv_el = utils.get_3DmFv_dp(point_set, gmm)
+            #fv_el = utils.get_3DmFV(point_set, gmm.weights_,gmm.means_,gmm.covariances_, normalize=True).reshape((1, -1))
             fv = np.concatenate((fv, fv_el), axis=0)
         fv = np.delete(fv, 0, 0)
 
@@ -314,11 +325,14 @@ def train_one_epoch(sess, ops, gmm, train_writer):
         total_seen += BATCH_SIZE
         loss_sum += loss_val
 
+        """all_fv_data = fv if batch_idx == 0 else np.concatenate((fv, batch_idx), axis=0)
+        label_tags = current_label[start_idx:end_idx] if batch_idx == 0 else np.concatenate((label_tags, current_label[start_idx:end_idx]), axis=0)"""
+
     log_string('mean loss: %f' % (loss_sum / float(num_batches)))
     log_string('accuracy: %f' % (total_correct / float(total_seen)))
 
 
-def eval_one_epoch(sess, ops, gmm, test_writer):
+def eval_one_epoch(sess, ops, gmm, test_writer, log_dir):
     """ ops: dict mapping from string to tf ops """
     is_training = False
     total_correct = 0
@@ -353,18 +367,15 @@ def eval_one_epoch(sess, ops, gmm, test_writer):
         end_idx = (batch_idx + 1) * BATCH_SIZE
 
         # Creation of fv for each file:
-        fv = np.zeros((1, 7 * 125))
-        print(f"Extracting data from batch {batch_idx}/{int(num_batches)} and creation of fisher vectors...")
+        fv = np.zeros((1, 20 * 125))
+        print(f"Extracting data from batch {batch_idx+1}/{int(num_batches)} and creation of fisher vectors...")
         for file in current_data[start_idx:end_idx]:
             pcd = o3d.io.read_point_cloud('./data/modeltrees/' + file)
             point_set = np.asarray(pcd.points)
             # center and normalize
-            #point_set -= np.mean(point_set, axis=0)
-            for i in range(3):
-                min = np.min(point_set[:, i])
-                max = np.max(point_set[:, i])
-                point_set[:, i] = (point_set[:, i] - min)/(max - min)
-            fv_el = utils.get_fisher_vectors(point_set, gmm, normalization=True).reshape((1, -1))
+            point_set = normalize_points(point_set)
+            #fv_el = utils.get_fisher_vectors(point_set, gmm, normalization=True).reshape((1, -1))
+            fv_el = utils.get_3DmFv_dp(point_set, gmm)
             fv = np.concatenate((fv, fv_el), axis=0)
         fv = np.delete(fv, 0, 0)
 
@@ -379,7 +390,9 @@ def eval_one_epoch(sess, ops, gmm, test_writer):
         test_writer.add_summary(summary, step)
         pred_val = np.argmax(pred_val, 1)
         correct = np.sum(pred_val == current_label[start_idx:end_idx])
-
+        #Store trues and pred
+        test_set_trues = current_label[start_idx:end_idx] if batch_idx == 0 else np.concatenate([test_set_trues, current_label[start_idx:end_idx]])
+        test_set_preds = pred_val if batch_idx == 0 else np.concatenate([test_set_preds, pred_val])
         #Find the fail cases
         batch_current_label = current_label[start_idx:end_idx]
         false_idx = list(pred_val != batch_current_label)
@@ -394,6 +407,13 @@ def eval_one_epoch(sess, ops, gmm, test_writer):
             l = current_label[i]
             total_seen_class[l] += 1
             total_correct_class[l] += (pred_val[i - start_idx] == l)
+    # store eval in pickle
+    dict_res_eval = {
+        'trues': test_set_trues,
+        'preds': test_set_preds,
+    }
+    with open(f"{log_dir}/res_eval.pickle", "wb") as output_file:
+        pickle.dump(dict_res_eval, output_file)
 
     fail_cases_true_labels_final.append(fail_cases_true_labels)
     fail_cases_false_labes_final.append(fail_cases_false_labes)
@@ -435,13 +455,13 @@ def export_visualizations(gmm, log_dir):
     with tf.Graph().as_default():
         with tf.device('/gpu:'+str(GPU_INDEX)):
 
-            points_pl, labels_pl,  w_pl, mu_pl, sigma_pl,  = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT, gmm,)
+            fv_pl, labels_pl,  w_pl, mu_pl, sigma_pl,  = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT, gmm,)
             is_training_pl = tf.compat.v1.placeholder(tf.bool, shape=())
-
+            #is_training_pl = False
             # Get model and loss
-            pred, fv = MODEL.get_model(points_pl, w_pl, mu_pl, sigma_pl, is_training_pl, num_classes=NUM_CLASSES)
+            pred, fv = MODEL.get_model(fv_pl, w_pl, mu_pl, sigma_pl, is_training_pl, num_classes=NUM_CLASSES)
 
-            ops = {'points_pl': points_pl,
+            ops = {'fv_pl': fv,
                    'labels_pl': labels_pl,
                    'w_pl': w_pl,
                    'mu_pl': mu_pl,
@@ -453,49 +473,68 @@ def export_visualizations(gmm, log_dir):
             saver = tf.compat.v1.train.Saver()
 
             # Create a session
-            sess =  tf_util.get_session(GPU_INDEX, limit_gpu=LIMIT_GPU)
+            sess = tf_util.get_session(GPU_INDEX, limit_gpu=LIMIT_GPU)
 
             # Restore variables from disk.
             saver.restore(sess, model_checkpoint)
             print("Model restored.")
 
             # Load the test data
-            for fn in range(len(TEST_FILES)):
-                log_string('----' + str(fn) + '-----')
-                current_data, current_label = provider.loadDataFile(TEST_FILES[fn])
-                current_data = current_data[:, 0:NUM_POINT, :]
-                current_label = np.squeeze(current_label)
+            #for fn in range(len(TEST_FILES)):
+            #log_string('----' + str(fn) + '-----')
+            current_data, current_label = provider.loadDataFile(TEST_FILES)
+            #current_data = current_data[:, 0:NUM_POINT, :]
+            current_label = np.squeeze(current_label)
 
-                file_size = current_data.shape[0]
-                num_batches = file_size / BATCH_SIZE
+            file_size = len(current_data)
+            num_batches = int(file_size / BATCH_SIZE)
 
-                for batch_idx in range(num_batches):
-                    start_idx = batch_idx * BATCH_SIZE
-                    end_idx = (batch_idx + 1) * BATCH_SIZE
+            for batch_idx in range(num_batches):
+                start_idx = batch_idx * BATCH_SIZE
+                end_idx = (batch_idx + 1) * BATCH_SIZE
 
-                    feed_dict = {ops['points_pl']: current_data[start_idx:end_idx, :, :],
-                                 ops['labels_pl']: current_label[start_idx:end_idx],
-                                 ops['w_pl']: gmm.weights_,
-                                 ops['mu_pl']: gmm.means_,
-                                 ops['sigma_pl']: np.sqrt(gmm.covariances_),
-                                 ops['is_training_pl']: False}
+                # Creation of fv for each file:
+                fv = np.zeros((1, 20 * 125))
+                print(f"Extracting data from batch {batch_idx}/{int(num_batches)} and creation of fisher vectors...")
+                for file in current_data[start_idx:end_idx]:
+                    pcd = o3d.io.read_point_cloud('./data/modeltrees/' + file)
+                    point_set = np.asarray(pcd.points)
+                    # center and normalize
+                    point_set = normalize_points(point_set)
+                    #fv_el = utils.get_fisher_vectors(point_set, gmm, normalization=True).reshape((1, -1))
+                    fv_el = utils.get_3DmFv_dp(point_set, gmm)
+                    fv = np.concatenate((fv, fv_el), axis=0)
+                fv = np.delete(fv, 0, 0)
 
-                    pred_label, fv_data = sess.run([ops['pred'], ops['fv']], feed_dict=feed_dict)
-                    pred_label = np.argmax(pred_label, 1)
+                feed_dict = {ops['fv_pl']: fv,
+                             ops['labels_pl']: current_label[start_idx:end_idx],
+                             ops['w_pl']: gmm.weights_,
+                             ops['mu_pl']: gmm.means_,
+                             ops['sigma_pl']: np.sqrt(gmm.covariances_),
+                             ops['is_training_pl']: False}
 
-                    all_fv_data = fv_data if (fn==0 and batch_idx==0) else np.concatenate([all_fv_data, fv_data],axis=0)
-                    true_labels = current_label[start_idx:end_idx] if (fn==0 and batch_idx==0) else np.concatenate([true_labels, current_label[start_idx:end_idx]],axis=0)
-                    all_pred_labels = pred_label if (fn==0 and batch_idx==0) else np.concatenate([all_pred_labels, pred_label],axis=0)
+                pred_label, fv_data = sess.run([ops['pred'], ops['fv']], feed_dict=feed_dict)
+                pred_label = np.argmax(pred_label, 1)
+
+                #all_fv_data = fv_data if (fn==0 and batch_idx==0) else np.concatenate([all_fv_data, fv_data],axis=0)
+                all_fv_data = fv_data if batch_idx==0 else np.concatenate([all_fv_data, fv_data],axis=0)
+                #true_labels = current_label[start_idx:end_idx] if (fn==0 and batch_idx==0) else np.concatenate([true_labels, current_label[start_idx:end_idx]],axis=0)
+                true_labels = current_label[start_idx:end_idx] if batch_idx==0 else np.concatenate([true_labels, current_label[start_idx:end_idx]],axis=0)
+                #all_pred_labels = pred_label if (fn==0 and batch_idx==0) else np.concatenate([all_pred_labels, pred_label],axis=0)
+                all_pred_labels = pred_label if batch_idx==0 else np.concatenate([all_pred_labels, pred_label],axis=0)
 
 
     # Export Confusion Matrix
     visualization.visualize_confusion_matrix(true_labels, all_pred_labels, classes=LABEL_MAP, normalize=False, export=True,
-                               display=False, filename=os.path.join(log_dir,'confusion_mat'), n_classes=NUM_CLASSES)
+                               display=False, filename=os.path.join(log_dir, 'confusion_mat'), n_classes=NUM_CLASSES)
 
-    # Export Fishre Vector Visualization
+    # Export Fisher Vector Visualization
     label_tags = [LABEL_MAP[i] for i in true_labels]
     visualization.visualize_fv(all_fv_data, gmm, label_tags,  export=True,
-                               display=False,filename=os.path.join(log_dir,'fisher_vectors'))
+                               display=False, filename=os.path.join(log_dir, 'fisher_vectors_true'))
+    label_tags_pred = [LABEL_MAP[i] for i in all_pred_labels]
+    visualization.visualize_fv(all_fv_data, gmm, label_tags_pred,  export=True,
+                               display=False, filename=os.path.join(log_dir, 'fisher_vectors_pred'))
     # plt.show() #uncomment this to see the images in addition to saving them
     print("Confusion matrix and Fisher vectores were saved to /" + str(log_dir))
 
@@ -505,13 +544,17 @@ if __name__ == "__main__":
     gmm = utils.get_3d_grid_gmm(subdivisions=[N_GAUSSIANS, N_GAUSSIANS, N_GAUSSIANS], variance=GMM_VARIANCE)
     pickle.dump(gmm, open(os.path.join(LOG_DIR, 'gmm.p'), "wb"))
     train(gmm)
-    #export_visualizations(gmm, LOG_DIR,n_model_limit=None)
+    export_visualizations(gmm, LOG_DIR)
+    show_log_train(LOG_DIR)
+    show_confusion_matrix(LOG_DIR, LABEL_MAP)
 
     LOG_FOUT.close()
     end_time = time.time()
+
+    #print time of training
     delta_time = end_time - start_time
     n_hours = int(delta_time/3600)
     n_min = int((delta_time % 3600)/60)
     n_sec = int(delta_time - n_hours * 3600 - n_min * 60)
-    print(f"TIME TO TRAIN ON {MAX_EPOCH}: {n_hours}:{n_min}:{n_sec}")
+    print(f"TIME TO TRAIN ON {MAX_EPOCH} epochs: {n_hours}:{n_min}:{n_sec}")
 

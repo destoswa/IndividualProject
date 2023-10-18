@@ -22,7 +22,8 @@ def placeholder_inputs(batch_size, n_points, gmm):
     mu_pl = tf.compat.v1.placeholder(tf.float32, shape=(n_gaussians, D))
     sigma_pl = tf.compat.v1.placeholder(tf.float32, shape=(n_gaussians, D)) # diagonal
     #points_pl = tf.compat.v1.placeholder(tf.float32, shape=(batch_size, n_points, D))
-    fv_pl = tf.compat.v1.placeholder(tf.float32, shape=(batch_size, 7*n_gaussians))
+    #fv_pl = tf.compat.v1.placeholder(tf.float32, shape=(batch_size, 7*n_gaussians))
+    fv_pl = tf.compat.v1.placeholder(tf.float32, shape=(batch_size, 20*n_gaussians))
 
     return fv_pl, labels_pl, w_pl, mu_pl, sigma_pl
 

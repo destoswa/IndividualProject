@@ -106,7 +106,7 @@ def get_2d_grid_gmm(subdivisions=[5, 5], variance=0.04):
 
     means = np.mgrid[step[0]-1: 1.0-step[0]: complex(0, subdivisions[0]),
             step[1]-1: 1.0-step[1]: complex(0, subdivisions[1])]
-    means = np.reshape(means, [2,-1]).T
+    means = np.reshape(means, [2, -1]).T
     covariances = variance*np.ones_like(means)
     weights = (1.0/n_gaussians)*np.ones(n_gaussians)
     gmm = GaussianMixture(n_components=n_gaussians, covariance_type='diag')
@@ -193,8 +193,13 @@ def fisher_vector(xx, gmm, normalization=True):
 
     #Power normaliation
     alpha = 0.5
-    d_pi = np.sign(d_pi) * np.power(np.absolute(d_pi),alpha)
+    d_pi = np.sign(d_pi) * np.power(np.absolute(d_pi), alpha)
     d_mu = np.sign(d_mu) * np.power(np.absolute(d_mu), alpha)
+    #d_mu = np.concatenate(np.max(d_mu, axis=1), np.min(d_mu, axis=1), d_mu)
+    """d_mu_all = Q_per_d * (batch_points - batch_mu) / batch_sig
+    d_mu = (1 / (np.sqrt(w_per_batch_per_d))) * np.concatenate(
+        [np.max(d_mu_all, axis=1), np.min(d_mu_all, axis=1), np.sum(d_mu_all, axis=1)], axis=2)"""
+
     d_sigma = np.sign(d_sigma) * np.power(np.absolute(d_sigma), alpha)
 
     if normalization == True:
@@ -234,7 +239,7 @@ def fisher_vector_per_point(xx, gmm):
     x_mu = np.swapaxes(x_mu, 1, 2)
     d_mu = (np.tile(np.expand_dims(Q, -1), D) * x_mu) / (np.sqrt(sig2_tiled) * sqrt_w)
 
-    d_sigma =   np.tile(np.expand_dims(Q, -1), 3)*((np.power(x_mu,2)/sig2_tiled)-1)/(np.sqrt(2)*sqrt_w)
+    d_sigma = np.tile(np.expand_dims(Q, -1), 3)*((np.power(x_mu,2)/sig2_tiled)-1)/(np.sqrt(2)*sqrt_w)
 
     fv_per_point = (d_pi, d_mu, d_sigma)
     return fv_per_point
@@ -252,6 +257,26 @@ def l2_normalize(v, dim=1):
     if norm.all() == 0:
        return v
     return v / norm
+
+
+def get_3DmFv_dp(points, gmm, normalize=True):
+    n_points = points.shape[0]
+
+    fv = fisher_vector_per_point(points, gmm)
+    d_pi = fv[0]
+    d_mu = fv[1]
+    d_sigma = fv[2]
+    d_pi_max = np.max(d_pi, axis=0).reshape((-1, 1))
+    d_pi_sum = np.sum(d_pi, axis=0).reshape((-1, 1))/n_points
+    d_mu_min = np.min(d_mu, axis=0)
+    d_mu_max = np.max(d_mu, axis=0)
+    d_mu_sum = np.sum(d_mu,axis=0)/n_points
+    d_sigma_min = np.min(d_sigma, axis=0)
+    d_sigma_max = np.max(d_sigma, axis=0)
+    d_sigma_sum = np.sum(d_sigma, axis=0)/n_points
+
+    fv_20 = np.concatenate([d_pi_max, d_pi_sum, d_mu_max, d_mu_min, d_mu_sum, d_sigma_max, d_sigma_min, d_sigma_sum], axis=1)
+    return fv_20.flatten().reshape((1, -1))
 
 
 def get_3DmFV(points, w, mu, sigma, normalize=True):
@@ -284,7 +309,7 @@ def get_3DmFV(points, w, mu, sigma, normalize=True):
     w_per_batch_per_d = np.tile(np.expand_dims(np.expand_dims(w, 0), -1),
                                 [n_batches, 1, 3*D])  # n_batches X n_gaussians X 3*D (D for min and D for max)
 
-    # Define multivariate noraml distributions
+    # Define multivariate normal distributions
     # Compute probability per point
     p_per_point = (1.0 / (np.power(2.0 * np.pi, D / 2.0) * np.power(batch_sig[:, :, :, 0], D))) * np.exp(
         -0.5 * np.sum(np.square((batch_points - batch_mu) / batch_sig), axis=3))

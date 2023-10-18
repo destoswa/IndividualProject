@@ -126,7 +126,7 @@ def draw_gaussian_points(points, g_points, gmm, idx=1, ax=None, display=False, c
     return ax
 
 
-def visualize_fv(fv, gmm, label_title='none', max_n_images=5, normalization=True, export=False, display=False, filename='fisher_vectors',n_scales=1, type='generic', fig_title='Figure'):
+def visualize_fv(fv, gmm, label_title='none', max_n_images=5, normalization=True, export=False, display=False, filename='fisher_vectors', n_scales=1, type='minmax', fig_title='Figure'):
     """ visualizes the fisher vector representation as an image
     INPUT: fv - n_gaussians*7 / B x n_gaussians*7 - fisher vector representation
            gmm.p - sklearn GaussianMixture object containing the information about the gmm.p that created the fv
@@ -144,7 +144,7 @@ def visualize_fv(fv, gmm, label_title='none', max_n_images=5, normalization=True
     if type == 'generic':
         derivatives = ["d_pi", "d_mu1", "d_mu2", "d_mu3", "d_sig1", "d_sig2", "d_sig3"]
     elif type == 'minmax':
-        derivatives = ["d_pi_max","d_pi_sum",
+        derivatives = ["d_pi_max", "d_pi_sum",
                        "d_mu1_max", "d_mu2_max", "d_mu3_max",
                        "d_mu1_min", "d_mu2_min", "d_mu3_min",
                        "d_mu1_sum", "d_mu2_sum", "d_mu3_sum",
@@ -152,7 +152,7 @@ def visualize_fv(fv, gmm, label_title='none', max_n_images=5, normalization=True
                        "d_sig1_min", "d_sig2_min", "d_sig3_min",
                        "d_sig1_sum", "d_sig2_sum", "d_sig3_sum"]
     else:
-        derivatives=[]
+        derivatives = []
 
     tick_marks = np.arange(len(derivatives))
 
@@ -163,42 +163,52 @@ def visualize_fv(fv, gmm, label_title='none', max_n_images=5, normalization=True
         # d_sigma = np.reshape(fv[0][n_gaussians*(n_features+fv_noise):n_gaussians*(n_covariances + n_features+fv_noise)],[n_covariances, n_gaussians])
         # fv_mat = np.concatenate([d_pi,d_mu,d_sigma], axis=0)
         fig = plt.figure()
-        fv_mat = np.reshape(fv,(-1,int(np.round(n_gaussians/n_scales))))
-        plt.imshow(fv_mat, cmap=cmap, vmin=vmin, vmax=vmax)
+        fv_mat = np.reshape(fv, (-1, int(np.round(n_gaussians/n_scales))))
+        #plt.imshow(fv_mat, cmap=cmap, vmin=vmin, vmax=vmax)
+        plt.imshow(fv_mat, cmap=cmap, vmin=vmin, vmax=vmax, aspect='auto')
         ax = plt.gca()
         ax.set_title(label_title)
         ax.set_yticks(tick_marks)
         ax.set_yticklabels(derivatives)
 
     else:
+        # Create mean of fv for each class
+        cls_unique = list(set(label_title))
+        fv_uniques = np.zeros((len(cls_unique), fv.shape[1]))
+        for id_cls, cls in enumerate(cls_unique):
+            ids = [i for i,x in enumerate(label_title) if x == cls]
+            fv_uniques[id_cls] = np.mean(fv[ids, :], axis=0)
+
         #Batch fv
-        n_models = fv.shape[0]
+        n_models = fv_uniques.shape[0]
         if n_models > max_n_images:
             n_models = max_n_images #Limit the number of images
         f, ax = plt.subplots(n_models, squeeze=False)
-        f.canvas.set_window_title(fig_title)
+        #f.canvas.set_window_title(fig_title)
         for i in range(n_models):
 
-            if len(fv.shape) == 2:
+            if len(fv_uniques.shape) == 2:
                 # flattened
-                fv_mat = np.reshape(fv[i,:], (-1, int(np.round(n_gaussians/n_scales))))
+                fv_mat = np.reshape(fv_uniques[i,:], (-1, int(np.round(n_gaussians/n_scales))))
             else:
-                fv_mat = fv[i,:,:]
+                fv_mat = fv_uniques[i,:,:]
 
-            ax[i, 0].imshow(fv_mat, cmap=cmap, vmin=vmin,vmax=vmax)
-            ax[i, 0].set_title(label_title[i])
+            ax[i, 0].imshow(fv_mat, cmap=cmap, vmin=vmin,vmax=vmax, aspect='auto')
+            ax[i, 0].set_title(cls_unique[i])
             ax[i, 0].set_xticks([])
-            ax[i, 0].set_yticks([])
+            #ax[i, 0].set_yticks([])
             #ax[i, 0].axis('off')
             ax[i, 0].set_yticks(tick_marks)
-            ax[i, 0].set_yticklabels(derivatives)
-            ax[i, 0].tick_params(labelsize=3)
+            ax[i, 0].set_yticklabels(derivatives, fontdict={'fontsize':5})
+            #ax[i, 0].tick_params(labelsize=8)
 
 
-        plt.subplots_adjust(hspace=0.5)
+        #plt.subplots_adjust(hspace=0.5)
+        f.tight_layout()
 
     if export:
-        plt.savefig(filename + '.pdf',format='pdf', bbox_inches='tight', dpi=1000)
+        #plt.savefig(filename + '.pdf', format='pdf', bbox_inches='tight', dpi=1000)
+        plt.savefig(filename + '.png')
     if display:
         plt.show()
 
@@ -382,6 +392,7 @@ def visualize_fv_with_pc(fv, points, label_title=None, fig_title='figure', type=
     if export:
         plt.savefig(filename + '.pdf', format='pdf', bbox_inches='tight', dpi=1000)
 
+
 def visualize_single_fv_with_pc(fv, points, label_title=None, fig_title='figure', type='minmax', pos=[750,800,0,0], export=False, filename='fv_pc'):
     """ visualizes the fisher vector representation as an image
     INPUT: fv - B X n_gaussians X n_components - fisher vector representation
@@ -441,6 +452,7 @@ def visualize_single_fv_with_pc(fv, points, label_title=None, fig_title='figure'
     if export:
         plt.savefig(filename + '.pdf', format='pdf', bbox_inches='tight', dpi=1000)
 
+
 def visualize_confusion_matrix(y_true, y_pred, classes=None, normalize=False, cmap=cm.jet, export=False, display=False, filename='confusion_mat', n_classes=40):
     """
     plots the confusion matrix as and image
@@ -463,22 +475,26 @@ def visualize_confusion_matrix(y_true, y_pred, classes=None, normalize=False, cm
     #Write the labels for each row and column
     if classes is not None:
         tick_marks = np.arange(len(classes))
-        plt.xticks(tick_marks, classes, rotation=90,  fontsize=5)
-        plt.yticks(tick_marks, classes,  fontsize=5)
+        plt.xticks(tick_marks, classes, rotation=90,  fontsize=8)
+        plt.yticks(tick_marks, classes,  fontsize=8)
 
     #Write the values in the center of the cell
-    thresh = conf_mat.max() / 2.
+    #thresh = conf_mat.max() / 2.
     for i, j in itertools.product(range(conf_mat.shape[0]), range(conf_mat.shape[1])):
+        """plt.text(j, i, conf_mat[i, j],
+                 horizontalalignment="center", fontsize=10,
+                 color="white" if conf_mat[i, j] > thresh else "black")"""
         plt.text(j, i, conf_mat[i, j],
-                 horizontalalignment="center", fontsize=3,
-                 color="white" if conf_mat[i, j] > thresh else "black")
+                 horizontalalignment="center", fontsize=8,
+                 color="white")
 
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
 
     if export:
-        plt.savefig(filename +'.pdf',format='pdf', bbox_inches='tight', dpi=1000)
+        #plt.savefig(filename +'.pdf',format='pdf', bbox_inches='tight', dpi=1000)
+        plt.savefig(filename + '.png')
     if display:
         plt.show()
 
@@ -660,9 +676,15 @@ def main():
     visualize_derivatives(points, gmm,gaussian_index,per_point_dpi, per_point_d_mu, per_point_d_sigma)
 
 
-
 if __name__ == "__main__":
     #main()
-    visualize_fv_pc_clas()
+    #visualize_fv_pc_clas()
     # path_to_test_results = '/home/itzikbs/PycharmProjects/fisherpointnet/log_seg/test_results'
     # make_segmentation_triplets_for_paper(path_to_test_results, cls='all', export = True)
+    a = np.arange(36,78)
+    min = np.min(a)
+    max = np.max(a)
+    a_bar = (max-min)/2
+    a_norm = (a-a_bar - min)/a_bar
+    print(a)
+    print(a_norm)
