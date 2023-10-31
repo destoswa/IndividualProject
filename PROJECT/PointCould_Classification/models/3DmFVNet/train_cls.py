@@ -21,6 +21,7 @@ sys.path.append(os.path.join(BASE_DIR, 'utils'))
 import tf_util
 import visualization
 import utils
+import pc_util
 import provider
 from visualize_logs import show_log_train, show_confusion_matrix
 
@@ -28,16 +29,17 @@ from visualize_logs import show_log_train, show_confusion_matrix
 # ModelNet40 official train/test split. MOdelNet10 requires separate downloading and sampling.
 MAX_N_POINTS = 2048
 NUM_CLASSES = 3
+N_PARAM = 7
 """TRAIN_FILES = provider.getDataFiles( \
     os.path.join(BASE_DIR, 'data/modelnet'+str(NUM_CLASSES)+'_ply_hdf5_'+ str(MAX_N_POINTS)+ '/train_files.txt'))
 TEST_FILES = provider.getDataFiles(\
     os.path.join(BASE_DIR, 'data/modelnet'+str(NUM_CLASSES)+'_ply_hdf5_'+ str(MAX_N_POINTS)+ '/test_files.txt'))
 LABEL_MAP = provider.getDataFiles(\
     os.path.join(BASE_DIR, 'data/modelnet'+str(NUM_CLASSES)+'_ply_hdf5_'+ str(MAX_N_POINTS)+ '/shape_names.txt'))"""
-TRAIN_FILES = 'data/modeltrees/modeltrees_train.csv'
-TEST_FILES = 'data/modeltrees/modeltrees_test.csv'
-LABEL_MAP = provider.getDataFiles('data/modeltrees/modeltrees_shape_names.txt')
-
+DATA_LOC = 'data/modeltrees_5200/'
+TRAIN_FILES = DATA_LOC + 'modeltrees_train.csv'
+TEST_FILES = DATA_LOC + 'modeltrees_test.csv'
+LABEL_MAP = provider.getDataFiles(DATA_LOC + 'modeltrees_shape_names.txt')
 print( "Loading Modelnet" + str(NUM_CLASSES))
 
 #Execute
@@ -52,7 +54,7 @@ parser.add_argument('--gpu', type=int, default=2, help='GPU to use [default: GPU
 parser.add_argument('--model', default='3dmfv_net_cls', help='Model name [default: 3dmfv_net_cls]')
 parser.add_argument('--log_dir', default='log_trial', help='Log dir [default: log]')
 parser.add_argument('--num_point', type=int, default=1024, help='Point Number [256/512/1024/2048] [default: 1024]')
-parser.add_argument('--max_epoch', type=int, default=200, help='Epoch to run [default: 200]')
+parser.add_argument('--max_epoch', type=int, default=20, help='Epoch to run [default: 200]')
 parser.add_argument('--batch_size', type=int, default=64, help='Batch Size during training [default: 64]')
 parser.add_argument('--learning_rate', type=float, default=0.001, help='Initial learning rate [default: 0.001]')
 parser.add_argument('--momentum', type=float, default=0.9, help='Initial learning rate [default: 0.9]')
@@ -63,7 +65,7 @@ parser.add_argument('--weight_decay', type=float, default=0.0, help='weight deca
 
 # Parameters for GMM
 parser.add_argument('--gmm_type',  default='grid', help='type of gmm [grid/learn], learn uses expectation maximization algorithm (EM) [default: grid]')
-parser.add_argument('--num_gaussians', type=int , default=5, help='number of gaussians for gmm, if grid specify subdivisions, if learned specify actual number[default: 5, for grid it means 125 gaussians]')
+parser.add_argument('--num_gaussians', type=int , default=10, help='number of gaussians for gmm, if grid specify subdivisions, if learned specify actual number[default: 5, for grid it means 125 gaussians]')
 parser.add_argument('--gmm_variance', type=float,  default=0.04, help='variance for grid gmm, relevant only for grid type')
 FLAGS = parser.parse_args()
 
@@ -86,7 +88,7 @@ WEIGHT_DECAY = FLAGS.weight_decay
 MODEL = importlib.import_module(FLAGS.model) # import network module
 MODEL_FILE = os.path.join(BASE_DIR, 'models', FLAGS.model+'.py')
 
-#Creat log directory ant prevent over-write by creating numbered subdirectories
+#Create log directory ant prevent over-write by creating numbered subdirectories
 LOG_DIR = 'log/modelnet' + str(NUM_CLASSES) + '/' + FLAGS.model + '/'+ GMM_TYPE + str(N_GAUSSIANS) + '_' + FLAGS.log_dir
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
@@ -152,6 +154,13 @@ def get_bn_decay(batch):
     return bn_decay
 
 
+def get_weights():
+    data, label = provider.loadDataFile(TRAIN_FILES)
+    weights = np.array([1.0 - label[label == 0].shape[0]/label.shape[0], 1.0 - label[label == 1].shape[0]/label.shape[0], 1.0 - label[label == 2].shape[0]/label.shape[0]])
+    print(f"Weights are : {weights}")
+    return weights
+
+
 def train(gmm):
     global MAX_ACCURACY, MAX_CLASS_ACCURACY
     # n_fv_features = 7 * len(gmm.weights_)
@@ -159,7 +168,7 @@ def train(gmm):
     # Build Graph, train and classify
     with tf.Graph().as_default():
         with tf.device('/gpu:'+str(GPU_INDEX)):
-            fv_pl, labels_pl, w_pl, mu_pl, sigma_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT, gmm )
+            fv_pl, labels_pl, w_pl, mu_pl, sigma_pl = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT, gmm, N_PARAM)
             is_training_pl = tf.compat.v1.placeholder(tf.bool, shape=())
 
             # Note the global_step=batch parameter to minimize.
@@ -171,7 +180,7 @@ def train(gmm):
             # Get model and loss
             #fv_in = utils.fisher_vector(xx, gmm)
             pred, fv = MODEL.get_model(fv_pl, w_pl, mu_pl, sigma_pl, is_training_pl, bn_decay=bn_decay, weigth_decay=WEIGHT_DECAY, add_noise=False, num_classes=NUM_CLASSES)
-            loss = MODEL.get_loss(pred, labels_pl)
+            loss = MODEL.get_loss(pred, labels_pl, tf.convert_to_tensor(get_weights(), dtype=tf.float32))
             tf.compat.v1.summary.scalar('loss', loss)
 
             # Get accuracy
@@ -223,6 +232,9 @@ def train(gmm):
             train_one_epoch(sess, ops, gmm, train_writer)
             acc, acc_avg_cls = eval_one_epoch(sess, ops, gmm, test_writer, LOG_DIR)
 
+            # save confustion matrix for epoch
+            show_confusion_matrix(LOG_DIR, LABEL_MAP, epoch=epoch)
+
             # Save the variables to disk.
             if epoch % 10 == 0:
                 save_path = saver.save(sess, os.path.join(LOG_DIR, "model.ckpt"))
@@ -242,7 +254,6 @@ def normalize_points(point_set):
         max = np.max(point_set[:, i])
         bar = (max-min)/2
         point_set[:, i] = (point_set[:, i] - bar - min) / bar
-        #point_set[:, i] = (point_set[:, i]) / (max - min)
     return point_set
 
 
@@ -278,17 +289,28 @@ def train_one_epoch(sess, ops, gmm, train_writer):
 
         # Creation of fv for each file:
         #fv = np.zeros((1, 7*125))
-        fv = np.zeros((1, 20*125))
+        fv = np.zeros((1, N_PARAM*N_GAUSSIANS**3))
         print(f"Extracting data from batch {batch_idx+1}/{int(num_batches)} and creation of fisher vectors...")
         for file in current_data[start_idx:end_idx]:
-            pcd = o3d.io.read_point_cloud('./data/modeltrees/' + file)
+            pcd = o3d.io.read_point_cloud(DATA_LOC + file)
             point_set = np.asarray(pcd.points)
+
             # center and normalize
-            #point_set -= np.mean(point_set, axis=0)
             point_set = normalize_points(point_set)
 
-            #fv_el = utils.get_fisher_vectors(point_set, gmm, normalization=True).reshape((1, -1))
-            fv_el = utils.get_3DmFv_dp(point_set, gmm)
+            # data augmentation
+            point_set = pc_util.random_point_dropout(point_set)
+            point_set = pc_util.random_scale_point_cloud(point_set)
+            point_set = pc_util.shift_point_cloud(point_set)
+
+            # get fisher vector
+            if N_PARAM == 7:
+                fv_el = utils.get_fisher_vectors(point_set, gmm, normalization=True).reshape((1, -1))
+            elif N_PARAM == 20:
+                fv_el = utils.get_3DmFv_dp(point_set, gmm)
+            else:
+                print("Not good number of param!")
+                exit()
             #fv_el = utils.get_3DmFV(point_set, gmm.weights_,gmm.means_,gmm.covariances_, normalize=True).reshape((1, -1))
             fv = np.concatenate((fv, fv_el), axis=0)
         fv = np.delete(fv, 0, 0)
@@ -367,15 +389,20 @@ def eval_one_epoch(sess, ops, gmm, test_writer, log_dir):
         end_idx = (batch_idx + 1) * BATCH_SIZE
 
         # Creation of fv for each file:
-        fv = np.zeros((1, 20 * 125))
+        fv = np.zeros((1, N_PARAM * N_GAUSSIANS**3))
         print(f"Extracting data from batch {batch_idx+1}/{int(num_batches)} and creation of fisher vectors...")
         for file in current_data[start_idx:end_idx]:
-            pcd = o3d.io.read_point_cloud('./data/modeltrees/' + file)
+            pcd = o3d.io.read_point_cloud(DATA_LOC + file)
             point_set = np.asarray(pcd.points)
             # center and normalize
             point_set = normalize_points(point_set)
-            #fv_el = utils.get_fisher_vectors(point_set, gmm, normalization=True).reshape((1, -1))
-            fv_el = utils.get_3DmFv_dp(point_set, gmm)
+            if N_PARAM == 7:
+                fv_el = utils.get_fisher_vectors(point_set, gmm, normalization=True).reshape((1, -1))
+            elif N_PARAM == 20:
+                fv_el = utils.get_3DmFv_dp(point_set, gmm)
+            else:
+                print("Not good number of param!")
+                exit()
             fv = np.concatenate((fv, fv_el), axis=0)
         fv = np.delete(fv, 0, 0)
 
@@ -402,7 +429,8 @@ def eval_one_epoch(sess, ops, gmm, test_writer, log_dir):
 
         total_correct += correct
         total_seen += BATCH_SIZE
-        loss_sum += (loss_val * BATCH_SIZE)
+        #loss_sum += (loss_val * BATCH_SIZE)
+        loss_sum += loss_val
         for i in range(start_idx, end_idx):
             l = current_label[i]
             total_seen_class[l] += 1
@@ -421,7 +449,8 @@ def eval_one_epoch(sess, ops, gmm, test_writer, log_dir):
 
     acc = total_correct / float(total_seen)
     acc_avg_cls =  np.mean(np.array(total_correct_class) / np.array(total_seen_class, dtype=float))
-    log_string('eval mean loss: %f' % (loss_sum / float(total_seen)))
+    #log_string('eval mean loss: %f' % (loss_sum / float(total_seen)))
+    log_string('eval mean loss: %f' % (loss_sum / float(num_batches)))
     log_string('eval accuracy: %f' % (acc))
     log_string('eval avg class acc: %f' % (acc_avg_cls))
 
@@ -455,7 +484,7 @@ def export_visualizations(gmm, log_dir):
     with tf.Graph().as_default():
         with tf.device('/gpu:'+str(GPU_INDEX)):
 
-            fv_pl, labels_pl,  w_pl, mu_pl, sigma_pl,  = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT, gmm,)
+            fv_pl, labels_pl,  w_pl, mu_pl, sigma_pl,  = MODEL.placeholder_inputs(BATCH_SIZE, NUM_POINT, gmm, N_PARAM)
             is_training_pl = tf.compat.v1.placeholder(tf.bool, shape=())
             #is_training_pl = False
             # Get model and loss
@@ -494,15 +523,20 @@ def export_visualizations(gmm, log_dir):
                 end_idx = (batch_idx + 1) * BATCH_SIZE
 
                 # Creation of fv for each file:
-                fv = np.zeros((1, 20 * 125))
-                print(f"Extracting data from batch {batch_idx}/{int(num_batches)} and creation of fisher vectors...")
+                fv = np.zeros((1, N_PARAM * N_GAUSSIANS**3))
+                print(f"Extracting data from batch {batch_idx+1}/{int(num_batches)} and creation of fisher vectors...")
                 for file in current_data[start_idx:end_idx]:
-                    pcd = o3d.io.read_point_cloud('./data/modeltrees/' + file)
+                    pcd = o3d.io.read_point_cloud(DATA_LOC + file)
                     point_set = np.asarray(pcd.points)
                     # center and normalize
                     point_set = normalize_points(point_set)
-                    #fv_el = utils.get_fisher_vectors(point_set, gmm, normalization=True).reshape((1, -1))
-                    fv_el = utils.get_3DmFv_dp(point_set, gmm)
+                    if N_PARAM == 7:
+                        fv_el = utils.get_fisher_vectors(point_set, gmm, normalization=True).reshape((1, -1))
+                    elif N_PARAM == 20:
+                        fv_el = utils.get_3DmFv_dp(point_set, gmm)
+                    else:
+                        print("Not good number of param!")
+                        exit()
                     fv = np.concatenate((fv, fv_el), axis=0)
                 fv = np.delete(fv, 0, 0)
 
@@ -529,12 +563,16 @@ def export_visualizations(gmm, log_dir):
                                display=False, filename=os.path.join(log_dir, 'confusion_mat'), n_classes=NUM_CLASSES)
 
     # Export Fisher Vector Visualization
+    if N_PARAM == 7:
+        type = 'generic'
+    elif N_PARAM == 20:
+        type = 'minmax'
     label_tags = [LABEL_MAP[i] for i in true_labels]
     visualization.visualize_fv(all_fv_data, gmm, label_tags,  export=True,
-                               display=False, filename=os.path.join(log_dir, 'fisher_vectors_true'))
+                               display=False, filename=os.path.join(log_dir, 'fisher_vectors_true'), type=type)
     label_tags_pred = [LABEL_MAP[i] for i in all_pred_labels]
     visualization.visualize_fv(all_fv_data, gmm, label_tags_pred,  export=True,
-                               display=False, filename=os.path.join(log_dir, 'fisher_vectors_pred'))
+                               display=False, filename=os.path.join(log_dir, 'fisher_vectors_pred'), type=type)
     # plt.show() #uncomment this to see the images in addition to saving them
     print("Confusion matrix and Fisher vectores were saved to /" + str(log_dir))
 
@@ -546,7 +584,7 @@ if __name__ == "__main__":
     train(gmm)
     export_visualizations(gmm, LOG_DIR)
     show_log_train(LOG_DIR)
-    show_confusion_matrix(LOG_DIR, LABEL_MAP)
+    #show_confusion_matrix(LOG_DIR, LABEL_MAP)
 
     LOG_FOUT.close()
     end_time = time.time()

@@ -1,4 +1,5 @@
 import argparse
+import os.path
 
 from matplotlib import pyplot as plt
 import numpy as np
@@ -12,7 +13,6 @@ parser.add_argument('--src', default='./log/modelnet3/3dmfv_net_cls/grid5_log_tr
 
 
 def line_to_float(line):
-    print(line)
     return float(line.split(':')[1].replace(' ', ''))
 
 
@@ -50,6 +50,7 @@ def show_log_train(src, do_save=True, do_show=False):
     axs[0].plot(np.arange(num_epoch), ls_eval_avg_class_acc, label='avg_class')
     axs[0].set_title('Accuracy')
     axs[0].set_ylabel('Accuracy value [-]')
+    axs[0].set_ylim(None, 1.0)
     axs[0].legend()
 
     axs[1].plot(np.arange(num_epoch), ls_train_loss, label='train')
@@ -66,7 +67,7 @@ def show_log_train(src, do_save=True, do_show=False):
         plt.savefig(src+'/acc_loss_evolution.png')
 
 
-def show_confusion_matrix(src, class_labels, do_save=True, do_show=False):
+def show_confusion_matrix(src, class_labels, epoch=0, do_save=True, do_show=False):
     """
         plots the confusion matrix as and image
         :param y_true: list of the GT label of the models
@@ -88,7 +89,7 @@ def show_confusion_matrix(src, class_labels, do_save=True, do_show=False):
     fig = plt.figure()
     plt.imshow(conf_mat, cmap=cm.jet)
     ax = plt.gca()
-    ax.set_title('Confusion Matrix')
+    ax.set_title('Confusion Matrix - epoch ' + str(epoch))
 
     # Write the labels for each row and column
     if class_labels is not None:
@@ -109,14 +110,18 @@ def show_confusion_matrix(src, class_labels, do_save=True, do_show=False):
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
+    fig.tight_layout()
 
     if do_save:
         # plt.savefig(filename +'.pdf',format='pdf', bbox_inches='tight', dpi=1000)
-        plt.savefig(src + '/confusion_matrix2.png')
+        if not os.path.exists(src + '/confusion_matrices'):
+            os.mkdir(src + '/confusion_matrices')
+        #plt.savefig(src + '/' + target)
+        plt.savefig(src + '/confusion_matrices/confustion_matrix_' + str(epoch) + '.png')
     if do_show:
         plt.show()
 
 
 if __name__ == '__main__':
-    src = "./log/modelnet3/3dmfv_net_cls/grid5_log_trial/1"
+    src = "./log/modelnet3/3dmfv_net_cls/grid10_log_trial/9"
     show_log_train(src)

@@ -1,10 +1,20 @@
 import numpy as np
+import pandas as pd
 import os
 from torch.utils.data import Dataset
 import torch
 from pointnet_util import farthest_point_sample, pc_normalize
 import json
 import open3d as o3d
+
+
+def normalize_points(point_set):
+    for i in range(3):
+        min = np.min(point_set[:, i])
+        max = np.max(point_set[:, i])
+        bar = (max-min)/2
+        point_set[:, i] = (point_set[:, i] - bar - min) / bar
+    return point_set
 
 
 class ModelNetDataLoader(Dataset):
@@ -23,16 +33,22 @@ class ModelNetDataLoader(Dataset):
         shape_ids = {}
         #shape_ids['train'] = [line.rstrip() for line in open(os.path.join(self.root, 'modelnet40_train.txt'))]
         #shape_ids['test'] = [line.rstrip() for line in open(os.path.join(self.root, 'modelnet40_test.txt'))]
-        shape_ids['train'] = [line.rstrip() for line in open(os.path.join(self.root, 'modeltrees_train.txt'))]
-        shape_ids['test'] = [line.rstrip() for line in open(os.path.join(self.root, 'modeltrees_test.txt'))]
+
+        #shape_ids['train'] = [line.rstrip() for line in open(os.path.join(self.root, 'modeltrees_train.txt'))]
+        #shape_ids['test'] = [line.rstrip() for line in open(os.path.join(self.root, 'modeltrees_test.txt'))]
+
+        shape_ids['train'] = pd.read_csv(os.path.join(self.root, 'modeltrees_train.csv'), delimiter=';')
+        shape_ids['test'] = pd.read_csv(os.path.join(self.root, 'modeltrees_test.csv'), delimiter=';')
 
         assert (split == 'train' or split == 'test')
-        shape_names = ['_'.join(x.split('_')[0:-1]) for x in shape_ids[split]]
+        #shape_names = ['_'.join(x.split('_')[0:-1]) for x in shape_ids[split]]
         # list of (shape_name, shape_txt_file_path) tuple
         #self.datapath = [(shape_names[i], os.path.join(self.root, shape_names[i], shape_ids[split][i]) + '.txt') for i
         #                 in range(len(shape_ids[split]))]
-        self.datapath = [(shape_names[i], os.path.join(self.root, shape_names[i], shape_ids[split][i])) for i
-                         in range(len(shape_ids[split]))]
+        #self.datapath = [(shape_names[i], os.path.join(self.root, shape_names[i], shape_ids[split][i])) for i
+        #                 in range(len(shape_ids[split]))]
+        self.datapath = [(shape_ids[split]['label'][i], os.path.join(self.root, shape_ids[split]['data'][i])) for i
+                         in range(len(shape_ids[split].index))]
         print('The size of %s data is %d'%(split, len(self.datapath)))
 
         self.cache_size = cache_size  # how many data points to cache in memory
@@ -46,18 +62,27 @@ class ModelNetDataLoader(Dataset):
             point_set, cls = self.cache[index]
         else:
             fn = self.datapath[index]
-            cls = self.classes[self.datapath[index][0]]
+            #cls = self.classes[self.datapath[index][0]]
+            cls = self.datapath[index][0]
             cls = np.array([cls]).astype(np.int32)
             #point_set = np.loadtxt(fn[1], delimiter=',').astype(np.float32)
-            pcd = o3d.io.read_point_cloud(fn[1])
+            #point_set = normalize_points(point_set)
+
+            """pcd = o3d.io.read_point_cloud(fn[1])
             point_set = np.asarray(pcd.points)
-            point_set = np.concatenate((point_set, np.zeros((point_set.shape[0], 3))), axis=1).astype(np.float32)
+            point_set = np.concatenate((point_set, np.zeros((point_set.shape[0], 3))), axis=1).astype(np.float32)"""
+
+            pcdt = o3d.t.io.read_point_cloud(fn[1])
+            point_set = pcdt.point['positions'].numpy()
+            intensity = pcdt.point['intensity'].numpy()
+            point_set = np.concatenate((point_set, intensity, intensity, intensity), axis=1)
             if self.uniform:
                 point_set = farthest_point_sample(point_set, self.npoints)
             else:
                 point_set = point_set[0:self.npoints, :]
 
             point_set[:, 0:3] = pc_normalize(point_set[:, 0:3])
+            point_set[:, 3::] = pc_normalize(point_set[:, 3::])
 
             if not self.normal_channel:
                 point_set = point_set[:, 0:3]

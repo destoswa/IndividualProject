@@ -10,7 +10,7 @@ sys.path.append(os.path.join(BASE_DIR, '../utils'))
 import tf_util
 
 
-def placeholder_inputs(batch_size, n_points, gmm):
+def placeholder_inputs(batch_size, n_points, gmm, n_param):
 
     #Placeholders for the data
     n_gaussians = gmm.means_.shape[0]
@@ -23,7 +23,7 @@ def placeholder_inputs(batch_size, n_points, gmm):
     sigma_pl = tf.compat.v1.placeholder(tf.float32, shape=(n_gaussians, D)) # diagonal
     #points_pl = tf.compat.v1.placeholder(tf.float32, shape=(batch_size, n_points, D))
     #fv_pl = tf.compat.v1.placeholder(tf.float32, shape=(batch_size, 7*n_gaussians))
-    fv_pl = tf.compat.v1.placeholder(tf.float32, shape=(batch_size, 20*n_gaussians))
+    fv_pl = tf.compat.v1.placeholder(tf.float32, shape=(batch_size, n_param*n_gaussians))
 
     return fv_pl, labels_pl, w_pl, mu_pl, sigma_pl
 
@@ -103,11 +103,18 @@ def inception_module(input, n_filters=64, kernel_sizes=[3,5], is_training=None, 
     return output
 
 
-def get_loss(pred, label):
+def get_loss(pred, label, class_weights):
     """ pred: B*NUM_CLASSES,
         label: B, """
+    # your class weights
+    #class_weights = tf.constant([[1.0, 2.0, 3.0]])
+    # deduce weights for batch samples based on their true label
+    weights = tf.reduce_sum(class_weights * tf.cast(tf.one_hot(label, 3), tf.float32), axis=1)
 
-    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred, labels=label)
+    unweighted_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=pred, labels=label, )
+    weighted_losses = unweighted_loss * weights
+    # reduce the result to get your final loss
+    loss = tf.reduce_mean(weighted_losses)
 
     classify_loss = tf.reduce_mean(loss)
     tf.compat.v1.summary.scalar('classify loss', classify_loss)

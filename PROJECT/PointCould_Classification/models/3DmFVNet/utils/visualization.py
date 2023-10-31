@@ -126,7 +126,7 @@ def draw_gaussian_points(points, g_points, gmm, idx=1, ax=None, display=False, c
     return ax
 
 
-def visualize_fv(fv, gmm, label_title='none', max_n_images=5, normalization=True, export=False, display=False, filename='fisher_vectors', n_scales=1, type='minmax', fig_title='Figure'):
+def visualize_fv(fv, gmm, label_title='none', max_n_images=5, normalization=True, export=False, display=False, filename='fisher_vectors', n_scales=1, type='generic', fig_title='Figure'):
     """ visualizes the fisher vector representation as an image
     INPUT: fv - n_gaussians*7 / B x n_gaussians*7 - fisher vector representation
            gmm.p - sklearn GaussianMixture object containing the information about the gmm.p that created the fv
@@ -491,7 +491,7 @@ def visualize_confusion_matrix(y_true, y_pred, classes=None, normalize=False, cm
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
-
+    fig.tight_layout()
     if export:
         #plt.savefig(filename +'.pdf',format='pdf', bbox_inches='tight', dpi=1000)
         plt.savefig(filename + '.png')

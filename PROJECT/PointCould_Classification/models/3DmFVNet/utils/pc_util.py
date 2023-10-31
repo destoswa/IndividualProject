@@ -246,3 +246,46 @@ def pyplot_draw_volume(vol, output_filename):
     """
     points = volume_to_point_cloud(vol)
     pyplot_draw_point_cloud(points, output_filename)
+
+
+def random_point_dropout(points, max_dropout_ratio=0.875):
+    ''' batch_pc: BxNx3 '''
+    ''' actually it is point size: Nx3'''
+    #for b in range(batch_pc.shape[0]):
+    dropout_ratio =  np.random.random()*max_dropout_ratio # 0~0.875
+    drop_idx = np.where(np.random.random((points.shape[0]))<=dropout_ratio)[0]
+    if len(drop_idx)>0:
+        #batch_pc[b,drop_idx,:] = batch_pc[b,0,:] # set to the first point
+        points = np.delete(points, drop_idx, 0)
+    return points
+
+
+def random_scale_point_cloud(points, scale_low=0.8, scale_high=1.25):
+    """ Randomly scale the point cloud. Scale is per point cloud.
+        Input:
+            BxNx3 array, original batch of point clouds
+            Actually Nx3
+        Return:
+            BxNx3 array, scaled batch of point clouds
+            Actually Nx3
+    """
+    N, C = points.shape
+    #scales = np.random.uniform(scale_low, scale_high, B)
+    scales = np.random.uniform(scale_low, scale_high)
+    #for batch_index in range(B):
+    points[:,:] *= scales
+    return points
+
+
+def shift_point_cloud(points, shift_range=0.1):
+    """ Randomly shift point cloud. Shift is per point cloud.
+        Input:
+          BxNx3 array, original batch of point clouds
+        Return:
+          BxNx3 array, shifted batch of point clouds
+    """
+    N, C = points.shape
+    shifts = np.random.uniform(-shift_range, shift_range, (1,3))
+    #for batch_index in range(B):
+    points[:,:] += shifts[:]
+    return points
