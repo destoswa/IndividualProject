@@ -68,21 +68,21 @@ class ModelNetDataLoader(Dataset):
             #point_set = np.loadtxt(fn[1], delimiter=',').astype(np.float32)
             #point_set = normalize_points(point_set)
 
-            """pcd = o3d.io.read_point_cloud(fn[1])
+            pcd = o3d.io.read_point_cloud(fn[1])
             point_set = np.asarray(pcd.points)
-            point_set = np.concatenate((point_set, np.zeros((point_set.shape[0], 3))), axis=1).astype(np.float32)"""
+            point_set = np.concatenate((point_set, np.zeros((point_set.shape[0], 3))), axis=1).astype(np.float32)
 
-            pcdt = o3d.t.io.read_point_cloud(fn[1])
+            """pcdt = o3d.t.io.read_point_cloud(fn[1])
             point_set = pcdt.point['positions'].numpy()
             intensity = pcdt.point['intensity'].numpy()
-            point_set = np.concatenate((point_set, intensity, intensity, intensity), axis=1)
+            point_set = np.concatenate((point_set, intensity, intensity, intensity), axis=1)"""
             if self.uniform:
                 point_set = farthest_point_sample(point_set, self.npoints)
             else:
                 point_set = point_set[0:self.npoints, :]
 
             point_set[:, 0:3] = pc_normalize(point_set[:, 0:3])
-            point_set[:, 3::] = pc_normalize(point_set[:, 3::])
+            #point_set[:, 3::] = pc_normalize(point_set[:, 3::])
 
             if not self.normal_channel:
                 point_set = point_set[:, 0:3]

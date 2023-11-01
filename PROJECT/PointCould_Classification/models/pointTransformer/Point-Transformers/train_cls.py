@@ -101,7 +101,7 @@ def main(args):
     '''DATA LOADING'''
     logger.info('Load dataset ...')
     #DATA_PATH = hydra.utils.to_absolute_path('data/modelnet40_normal_resampled/')
-    DATA_PATH = hydra.utils.to_absolute_path('data/modeltrees_3600_FIXEDSIZE_2048/')
+    DATA_PATH = hydra.utils.to_absolute_path('data/modeltrees_5200_FIXEDSIZE_1024/')
     with open(DATA_PATH + '\modeltrees_shape_names.txt', 'r') as f:
         SAMPLE_LABELS = f.read().splitlines()
     TRAIN_DATASET = ModelNetDataLoader(root=DATA_PATH, npoint=args.num_point, split='train', normal_channel=args.normal)
@@ -169,7 +169,7 @@ def main(args):
         for batch_id, data in tqdm(enumerate(trainDataLoader, 0), total=len(trainDataLoader), smoothing=0.9):
             points, target = data
             points = points.data.numpy()
-            points = provider.random_point_dropout(points, max_dropout_ratio=0.4)
+            points = provider.random_point_dropout(points)
             points[:, :, 0:3] = provider.random_scale_point_cloud(points[:, :, 0:3])
             points[:, :, 0:3] = provider.shift_point_cloud(points[:, :, 0:3])
             points = torch.Tensor(points)
