@@ -135,6 +135,8 @@ class PointTransformerCls(nn.Module):
         xyz = x[..., :3]
         x = x.permute(0, 2, 1)
         batch_size, _, _ = x.size()
+        if batch_size != 16:
+            print(batch_size)
         x = self.relu(self.bn1(self.conv1(x))) # B, D, N
         x = self.relu(self.bn2(self.conv2(x))) # B, D, N
         x = x.permute(0, 2, 1)
