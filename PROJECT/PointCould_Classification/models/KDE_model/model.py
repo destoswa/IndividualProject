@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 
 
@@ -9,7 +8,7 @@ class PointTransformerCls(nn.Module):
         d_grid = cfg['grid_dim']
         self.grid_dim = cfg['grid_dim']
         self.relu = nn.ReLU()
-        self.softmax = nn.Softmax(dim=output_channels)
+        self.softmax = nn.Softmax(dim=1)
 
         # convolution layer 1
         self.conv1 = nn.Conv3d(1, 32, kernel_size=3, stride=1, padding=1, bias=False)
@@ -46,7 +45,7 @@ class PointTransformerCls(nn.Module):
         self.bn10 = nn.BatchNorm3d(512)
 
         # fully connected layer 1
-        self.linear1 = nn.Linear(512 * int((d_grid/16)**3), 256, bias=False)
+        self.linear1 = nn.Linear(512 * int((d_grid / 16) ** 3), 256, bias=False)
         self.do1 = nn.Dropout(p=0.3)
 
         # fully connected layer 2
@@ -58,36 +57,36 @@ class PointTransformerCls(nn.Module):
 
     def forward(self, x):
         batch_size, _, _, _ = x.size()
-        x = x.reshape((batch_size, 1, self.grid_dim, self.grid_dim, self.grid_dim)).float() # 16 x 1 x N x N x N
+        x = x.reshape((batch_size, 1, self.grid_dim, self.grid_dim, self.grid_dim)).float()  # B x 1 x N x N x N
 
         # convolution layer 1
-        x = self.relu(self.bn1(self.conv1(x))) # 16 x 32 x N x N x N
-        x = self.relu(self.bn2(self.conv2(x))) # 16 x 32 x N x N x N
-        x = self.mp1(x) # 16 x 32 x N/2 x N/2 x N/2
+        x = self.relu(self.bn1(self.conv1(x)))  # B x 32 x N x N x N
+        x = self.relu(self.bn2(self.conv2(x)))  # B x 32 x N x N x N
+        x = self.mp1(x)  # B x 32 x N/2 x N/2 x N/2
 
         # convolution layer 2
-        x = self.relu(self.bn3(self.conv3(x))) # 16 x 64 x N/2 x N/2 x N/2
-        x = self.relu(self.bn4(self.conv4(x))) # 16 x 64 x N/2 x N/2 x N/2
-        x = self.mp2(x) # 16 x 64 x N/4 x N/4 x N/4
+        x = self.relu(self.bn3(self.conv3(x)))  # B x 64 x N/2 x N/2 x N/2
+        x = self.relu(self.bn4(self.conv4(x)))  # B x 64 x N/2 x N/2 x N/2
+        x = self.mp2(x)  # B x 64 x N/4 x N/4 x N/4
 
         # convolution layer 3
-        x = self.relu(self.bn5(self.conv5(x))) # 16 x 128 x N/4 x N/4 x N/4
-        x = self.relu(self.bn6(self.conv6(x))) # 16 x 128 x N/4 x N/4 x N/4
-        x = self.mp3(x) # 16 x 64 x N/8 x N/8 x N/8
+        x = self.relu(self.bn5(self.conv5(x)))  # B x 128 x N/4 x N/4 x N/4
+        x = self.relu(self.bn6(self.conv6(x)))  # B x 128 x N/4 x N/4 x N/4
+        x = self.mp3(x)  # B x 64 x N/8 x N/8 x N/8
 
         # convolution layer 4
-        x = self.relu(self.bn7(self.conv7(x))) # 16 x 256 x N/8 x N/8 x N/8
-        x = self.relu(self.bn8(self.conv8(x))) # 16 x 256 x N/8 x N/8 x N/8
-        x = self.mp4(x) # 16 x 128 x N/16 x N/16 x N/16
+        x = self.relu(self.bn7(self.conv7(x)))  # B x 256 x N/8 x N/8 x N/8
+        x = self.relu(self.bn8(self.conv8(x)))  # B x 256 x N/8 x N/8 x N/8
+        x = self.mp4(x)  # B x 128 x N/16 x N/16 x N/16
 
         # convolution layer 5
-        x = self.relu(self.bn9(self.conv9(x))) # 16 x 512 x N/16 x N/16 x N/16
-        x = self.relu(self.bn10(self.conv10(x))) # 16 x 512 x N/16 x N/16 x N/16
+        x = self.relu(self.bn9(self.conv9(x)))  # B x 512 x N/16 x N/16 x N/16
+        x = self.relu(self.bn10(self.conv10(x)))  # B x 512 x N/16 x N/16 x N/16
 
         # fully connected layers
-        x_flat = x.reshape((batch_size, -1)) # 16 x (512 * (N/16)^3)
-        x = self.relu(self.do1(self.linear1(x_flat))) # 16 x 256
-        x = self.relu(self.do2(self.linear2(x))) # 16 x 128
-        x = self.softmax(self.linear3(x)) # 16x N_class
+        x_flat = x.reshape((batch_size, -1))  # B x (512 * (N/16)^3)
+        x = self.relu(self.do1(self.linear1(x_flat)))  # B x 256
+        x = self.relu(self.do2(self.linear2(x)))  # B x 128
+        x = self.softmax(self.linear3(x))  # B x N_class
 
         return x

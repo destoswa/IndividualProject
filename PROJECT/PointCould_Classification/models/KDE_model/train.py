@@ -14,13 +14,14 @@ from model import PointTransformerCls
 from visualization import show_log_train, show_confusion_matrix
 
 num_class = 3
-num_epoch = 10
+num_epoch = 1
 batch_size = 16
 learning_rate = 1e-3
 weight_decay = 1e-4
+filter_size = 2
 
-frac_training_data = .01
-frac_testing_data = .1
+frac_training_data = 1
+frac_testing_data = 1
 grid_dim = 64
 
 ROOT_DIR = 'data/modeltrees_5200/'
@@ -94,7 +95,10 @@ def training(log_version, log_source):
         print("Cuda available")
 
     # transformation
-    data_transform = transforms.Compose([ToKDE(grid_dim), ToTensor()])
+    data_transform = transforms.Compose([
+        ToKDE(grid_dim, filter_size),
+        ToTensor(),
+    ])
 
     # load datasets
     trainingSet = modeltreesDataLoader(TRAIN_FILES, ROOT_DIR, transform=data_transform, frac=frac_training_data)
@@ -106,18 +110,18 @@ def training(log_version, log_source):
 
     # get class weights:
     print('Calculating weights...')
-    for batch_id, data in enumerate(trainDataLoader, 0):
-        targets = data['label'][:] if batch_id == 0 else torch.cat((targets, data['label'][:]), 0)
-    targets = targets.numpy()
+    targets = pd.read_csv(ROOT_DIR + TRAIN_FILES, delimiter=';')
+    targets = targets['label'].to_numpy()
     weights = compute_class_weight(
         class_weight='balanced',
         classes=np.unique(targets),
-        y=targets
+        y=targets,
     )
+
     print('Weights : ', weights)
     class_weights = torch.tensor(weights, dtype=torch.float, device=torch.device('cuda:0'))
 
-    # model (temporary)
+    # create model
     conf = {
         "num_class": 3,
         "grid_dim": grid_dim,
@@ -133,7 +137,7 @@ def training(log_version, log_source):
     )
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.3)
 
-    # looping on epochs
+    # loop on epochs
     best_test_acc = 0
     best_test_class_acc = 0
     best_test_loss = 0
@@ -168,7 +172,7 @@ def training(log_version, log_source):
             print("Best results : saving model...")
             torch.save(model.state_dict(), log_source + "/model_KDE.pth")
 
-            # save preds and tests for confusion matrix
+            # save preds and create confusion matrix
             conf_mat_data = {
                 'pred': preds_test,
                 'target': targets_test,
@@ -181,6 +185,8 @@ def training(log_version, log_source):
         with open('./log/' + str(log_version) + '/logs.csv', 'a', newline='') as file:
             writer = csv.writer(file, delimiter=';')
             writer.writerow([str(x) for x in line_log])
+
+    # best results
     print("\n==============\n")
     print("BEST RESULTS ON EPOCH ", best_epoch+1)
     print("BEST TEST ACC: ", best_test_acc)
@@ -213,6 +219,7 @@ def main():
     n_hours = int(delta_time / 3600)
     n_min = int((delta_time % 3600) / 60)
     n_sec = int(delta_time - n_hours * 3600 - n_min * 60)
+    print("\n==============\n")
     print(f"TIME TO TRAIN: {n_hours}:{n_min}:{n_sec}")
 
 
