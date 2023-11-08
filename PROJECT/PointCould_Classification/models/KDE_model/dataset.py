@@ -7,7 +7,7 @@ from sklearn.utils import shuffle
 import open3d as o3d
 
 
-class modeltreesDataLoader(Dataset):
+class ModelTreesDataLoader(Dataset):
     def __init__(self, csvfile, root_dir, transform, frac=1.0):
         """
             Arguments:

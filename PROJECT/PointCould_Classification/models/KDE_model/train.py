@@ -1,12 +1,10 @@
-import numpy as np
 import os
-import torch
 import csv
 import pandas as pd
 import time
 from tqdm import tqdm
 from sklearn.utils.class_weight import compute_class_weight
-from dataset import modeltreesDataLoader
+from dataset import ModelTreesDataLoader
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from utils import *
@@ -14,11 +12,11 @@ from model import PointTransformerCls
 from visualization import show_log_train, show_confusion_matrix
 
 num_class = 3
-num_epoch = 1
+num_epoch = 20
 batch_size = 16
 learning_rate = 1e-3
 weight_decay = 1e-4
-filter_size = 2
+kernel_size = 2
 
 frac_training_data = 1
 frac_testing_data = 1
@@ -96,13 +94,13 @@ def training(log_version, log_source):
 
     # transformation
     data_transform = transforms.Compose([
-        ToKDE(grid_dim, filter_size),
+        ToKDE(grid_dim, kernel_size),
         ToTensor(),
     ])
 
     # load datasets
-    trainingSet = modeltreesDataLoader(TRAIN_FILES, ROOT_DIR, transform=data_transform, frac=frac_training_data)
-    testingSet = modeltreesDataLoader(TEST_FILES, ROOT_DIR, transform=data_transform, frac=frac_testing_data)
+    trainingSet = ModelTreesDataLoader(TRAIN_FILES, ROOT_DIR, transform=data_transform, frac=frac_training_data)
+    testingSet = ModelTreesDataLoader(TEST_FILES, ROOT_DIR, transform=data_transform, frac=frac_testing_data)
 
     trainDataLoader = DataLoader(trainingSet, batch_size=batch_size, shuffle=True, num_workers=4)
     testDataLoader = DataLoader(testingSet, batch_size=batch_size, shuffle=True, num_workers=4)

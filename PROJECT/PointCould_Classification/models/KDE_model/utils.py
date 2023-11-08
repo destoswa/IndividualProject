@@ -13,25 +13,46 @@ class ToTensor(object):
                 'label': torch.from_numpy(np.asarray(label))}
 
 
-class ToKDE(object, filter_size=2):
+class ToKDE(object):
     """Convert pointCloud to KDE vector"""
 
-    def __init__(self, grid_size, filter_size):
+    def __init__(self, grid_size, kernel_size):
         self.grid_size = grid_size
-        self.filter_size = filter_size
+        self.kernel_size = kernel_size
 
     def __call__(self, sample):
         pointCloud = sample['pointCloud']
-        pointCloud = normalize_data(pointCloud)
+        pointCloud = pcNormalize(pointCloud)
 
         # create KDE grid:
-        grid = pcToGrid(pointCloud, self.grid_size, self.filter_size)
+        grid = pcToGrid(pointCloud, self.grid_size, self.kernel_size)
+        grid = gridNormalize(grid, 'minmax')
 
         return {'pointCloud': grid,
                 'label': sample['label']}
 
 
-def pcToGrid(data, grid_size, filter_size):
+def gridNormalize(grid, method='minmax'):
+    if method == 'minmax':
+        minVal = np.min(grid)
+        maxVal = np.max(grid)
+        grid = (grid - minVal)/(maxVal - minVal)
+    elif method == 'white':
+        raise NotImplementedError('This method still need to be implemented')
+    else:
+        raise ValueError('The parameter for the argument "method" is wrong.')
+    return grid
+
+
+def pcToGrid(data, grid_size, kernel_size):
+    """ Create a grid with a KDE with respect to the point cloud
+        Input:
+            GxGxG array: the grid to be updated
+            3x1 array: the position of the point
+            int : the size of the kernel
+        Output:
+            NxC array
+    """
     grid = np.zeros((grid_size, grid_size, grid_size))
 
     # find position of each point on grid
@@ -41,28 +62,36 @@ def pcToGrid(data, grid_size, filter_size):
         point = point.astype(int)
 
         # create KDE grid:
-        grid = pcToKDEgrid(grid, point, filter_size)
+        grid = pcToKDEgrid(grid, point, kernel_size)
 
     return grid
 
 
-def pcToKDEgrid(grid, point_pos, filter_size):
-    x, y, z = np.mgrid[-1:1.1:(1 / filter_size), -1:1.1:(1 / filter_size), -1:1.1:(1 / filter_size)]
+def pcToKDEgrid(grid, point_pos, kernel_size):
+    """ Create a grid with a KDE with respect to one point
+        Input:
+            GxGxG array: the grid to be updated
+            3x1 array: the position of the point
+            int : the size of the kernel
+        Output:
+            NxC array
+    """
+    x, y, z = np.mgrid[-1:1.1:(1 / kernel_size), -1:1.1:(1 / kernel_size), -1:1.1:(1 / kernel_size)]
     pos = np.stack((x, y, z), axis=-1)
     rv = multivariate_normal([0, 0, 0], .2)
     point_grid = rv.pdf(pos)
     for i in range(len(x)):
         for j in range(len(y)):
             for k in range(len(z)):
-                x_grid = point_pos[0] - filter_size + i
-                y_grid = point_pos[1] - filter_size + j
-                z_grid = point_pos[2] - filter_size + k
+                x_grid = point_pos[0] - kernel_size + i
+                y_grid = point_pos[1] - kernel_size + j
+                z_grid = point_pos[2] - kernel_size + k
                 if grid.shape[0] > x_grid >= 0 and grid.shape[1] > y_grid >= 0 and grid.shape[2] > z_grid >= 0:
                     grid[x_grid, y_grid, z_grid] += point_grid[i, j, k]
     return grid
 
 
-def normalize_data(data):
+def pcNormalize(data):
     """ Normalize the data, use coordinates of the block centered at origin,
         Input:
             NxC array
