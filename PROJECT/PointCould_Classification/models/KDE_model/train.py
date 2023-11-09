@@ -12,8 +12,9 @@ from model import PointTransformerCls
 from visualization import show_log_train, show_confusion_matrix
 
 num_class = 3
-num_epoch = 20
-batch_size = 16
+num_epoch = 10
+batch_size = 8
+num_workers = 8
 learning_rate = 1e-3
 weight_decay = 1e-4
 kernel_size = 2
@@ -34,19 +35,63 @@ def train_epoch(trainDataLoader, model, optimizer, criterion):
     num_samp_tot = 0
     mean_correct = []
     model.train()
+    compteur = 0
+    time_forward = 0
+    time_backward = 0
+    time_loading = 0
+    time_tocuda = 0
+    time_criterion = 0
+    time_optimizer = 0
+    time_osef = 0
+    time_tot = 0
     for batch_id, data in tqdm(enumerate(trainDataLoader, 0), total=len(trainDataLoader), smoothing=0.9):
-        grid, target = data['pointCloud'], data['label']
-        grid, target = grid.cuda(), target.cuda()
+        start_tot = time.time()
+
+        start = time.time()
+        grid, target = data['grid'], data['label']
+        time_loading += time.time() - start
+
+        start = time.time()
+        grid, target = grid.to('cuda:0'), target.to('cuda:0')
+        time_tocuda += time.time() - start
+
         optimizer.zero_grad()
+
+        start = time.time()
         pred = model(grid)
+        time_forward += time.time() - start
+
+        start = time.time()
         loss = criterion(pred, target.long())
+        time_criterion += time.time() - start
+
+        start = time.time()
         loss_tot += loss.item()
         pred_choice = pred.data.max(1)[1]
         correct = pred_choice.eq(target.long().data).cpu().sum()
         mean_correct.append(correct.item() / float(grid.size()[0]))
+        time_osef += time.time() - start
+
+        start = time.time()
         loss.backward()
+        time_backward += time.time() - start
+
+        start = time.time()
         optimizer.step()
+        time_optimizer += time.time() - start
+
         num_samp_tot += grid.shape[0]
+        time_tot += time.time() - start_tot
+        compteur += 1
+        if compteur == 30:
+            print("\ntime forward: " + str(time_forward))
+            print("time backward: " + str(time_backward))
+            print("time loading: " + str(time_loading))
+            print("time tocuda: " + str(time_tocuda))
+            print("time criterion: " + str(time_criterion))
+            print("time optimizer: " + str(time_optimizer))
+            print("time osef: " + str(time_osef))
+            print("time tot: " + str(time_tot))
     train_acc = np.mean(mean_correct)
     train_loss = loss_tot / num_samp_tot
     return train_acc, train_loss
@@ -60,7 +105,7 @@ def test_epoch(testDataLoader, model, criterion):
     class_acc = np.zeros((num_class, 3))
     num_samp_tot = 0
     for batch_id, data in tqdm(enumerate(testDataLoader, 0), total=len(testDataLoader), smoothing=0.9):
-        grid, target = data['pointCloud'], data['label']
+        grid, target = data['grid'], data['label']
         grid, target = grid.cuda(), target.cuda()
         pred = model(grid)
         loss = criterion(pred, target.long())
@@ -87,6 +132,7 @@ def test_epoch(testDataLoader, model, criterion):
 def training(log_version, log_source):
     # check torch and if cuda is available
     print("torch version : " + torch.__version__)
+    print('device : ' + torch.cuda.get_device_name())
     if not torch.cuda.is_available():
         print("CUDA NOT AVAILABLE")
     else:
@@ -99,11 +145,11 @@ def training(log_version, log_source):
     ])
 
     # load datasets
-    trainingSet = ModelTreesDataLoader(TRAIN_FILES, ROOT_DIR, transform=data_transform, frac=frac_training_data)
-    testingSet = ModelTreesDataLoader(TEST_FILES, ROOT_DIR, transform=data_transform, frac=frac_testing_data)
+    trainingSet = ModelTreesDataLoader(TRAIN_FILES, ROOT_DIR, split='train', transform=data_transform, frac=frac_training_data)
+    testingSet = ModelTreesDataLoader(TEST_FILES, ROOT_DIR, split='test', transform=data_transform, frac=frac_testing_data)
 
-    trainDataLoader = DataLoader(trainingSet, batch_size=batch_size, shuffle=True, num_workers=4)
-    testDataLoader = DataLoader(testingSet, batch_size=batch_size, shuffle=True, num_workers=4)
+    trainDataLoader = DataLoader(trainingSet, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
+    testDataLoader = DataLoader(testingSet, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
     torch.manual_seed(2809)
 
     # get class weights:
@@ -124,7 +170,7 @@ def training(log_version, log_source):
         "num_class": 3,
         "grid_dim": grid_dim,
     }
-    model = PointTransformerCls(conf).cuda()
+    model = PointTransformerCls(conf).to('cuda:0')
     criterion = torch.nn.CrossEntropyLoss(weight=class_weights, reduction='mean')
     optimizer = torch.optim.Adam(
         model.parameters(),
@@ -184,12 +230,17 @@ def training(log_version, log_source):
             writer = csv.writer(file, delimiter=';')
             writer.writerow([str(x) for x in line_log])
 
+    # erase cache folders
+    """trainingSet.clean_temp()
+    testingSet.clean_temp()"""
+
     # best results
     print("\n==============\n")
     print("BEST RESULTS ON EPOCH ", best_epoch+1)
     print("BEST TEST ACC: ", best_test_acc)
     print("BEST TEST CLASS ACC: ", best_test_class_acc)
     print("BEST TEST LOSS: ", best_test_loss)
+
 
 
 def main():

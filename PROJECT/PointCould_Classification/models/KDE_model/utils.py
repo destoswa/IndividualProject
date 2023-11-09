@@ -7,9 +7,9 @@ class ToTensor(object):
     """Convert ndarrays in sample to Tensors."""
 
     def __call__(self, sample):
-        pointCloud, label = sample['pointCloud'], sample['label']
+        data, label = sample['data'], sample['label']
 
-        return {'pointCloud': torch.from_numpy(pointCloud),
+        return {'data': torch.from_numpy(data),
                 'label': torch.from_numpy(np.asarray(label))}
 
 
@@ -21,14 +21,14 @@ class ToKDE(object):
         self.kernel_size = kernel_size
 
     def __call__(self, sample):
-        pointCloud = sample['pointCloud']
+        pointCloud = sample['data']
         pointCloud = pcNormalize(pointCloud)
 
         # create KDE grid:
         grid = pcToGrid(pointCloud, self.grid_size, self.kernel_size)
         grid = gridNormalize(grid, 'minmax')
 
-        return {'pointCloud': grid,
+        return {'data': grid,
                 'label': sample['label']}
 
 
