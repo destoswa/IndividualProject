@@ -74,7 +74,7 @@ class PointTransformerCls(nn.Module):
         x = x / norm  # B x 32 x N x N x N
         x[x != x] = 0  # B x 32 x N x N x N
         x = self.relu(x)  # B x 32 x N x N x N"""
-        
+
         # convolution layer 1
         x = self.relu(self.bn1(self.conv1(x)))  # B x 32 x N x N x N
         x = self.relu(self.bn2(self.conv2(x)))  # B x 32 x N x N x N
