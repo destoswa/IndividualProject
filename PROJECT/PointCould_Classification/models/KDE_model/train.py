@@ -8,16 +8,19 @@ from dataset import ModelTreesDataLoader
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from utils import *
-from model import PointTransformerCls
+#from models.model import PointTransformerCls
+from models.model_globavg import PointTransformerCls
+#from models.model_deep import PointTransformerCls
 from visualization import show_log_train, show_confusion_matrix
 
+do_update_caching = False
 num_class = 3
-num_epoch = 10
-batch_size = 8
-num_workers = 8
+num_epoch = 100
+batch_size = 12
+num_workers = 12
 learning_rate = 1e-3
 weight_decay = 1e-4
-kernel_size = 2
+kernel_size = 4
 
 frac_training_data = 1
 frac_testing_data = 1
@@ -35,63 +38,63 @@ def train_epoch(trainDataLoader, model, optimizer, criterion):
     num_samp_tot = 0
     mean_correct = []
     model.train()
-    compteur = 0
+    """compteur = 0
     time_forward = 0
     time_backward = 0
     time_loading = 0
     time_tocuda = 0
     time_criterion = 0
     time_optimizer = 0
-    time_osef = 0
-    time_tot = 0
+    time_tocpu = 0
+    time_tot = 0"""
     for batch_id, data in tqdm(enumerate(trainDataLoader, 0), total=len(trainDataLoader), smoothing=0.9):
-        start_tot = time.time()
+        #start_tot = time.time()
 
-        start = time.time()
+        #start = time.time()
         grid, target = data['grid'], data['label']
-        time_loading += time.time() - start
+        #time_loading += time.time() - start
 
-        start = time.time()
+        #start = time.time()
         grid, target = grid.to('cuda:0'), target.to('cuda:0')
-        time_tocuda += time.time() - start
+        #time_tocuda += time.time() - start
 
         optimizer.zero_grad()
 
-        start = time.time()
+        #start = time.time()
         pred = model(grid)
-        time_forward += time.time() - start
+        #time_forward += time.time() - start
 
-        start = time.time()
+        #start = time.time()
         loss = criterion(pred, target.long())
-        time_criterion += time.time() - start
+        #time_criterion += time.time() - start
 
-        start = time.time()
+        #start = time.time()
         loss_tot += loss.item()
         pred_choice = pred.data.max(1)[1]
         correct = pred_choice.eq(target.long().data).cpu().sum()
         mean_correct.append(correct.item() / float(grid.size()[0]))
-        time_osef += time.time() - start
+        #time_tocpu += time.time() - start
 
-        start = time.time()
+        #start = time.time()
         loss.backward()
-        time_backward += time.time() - start
+        #time_backward += time.time() - start
 
-        start = time.time()
+        #start = time.time()
         optimizer.step()
-        time_optimizer += time.time() - start
+        #time_optimizer += time.time() - start
 
         num_samp_tot += grid.shape[0]
-        time_tot += time.time() - start_tot
-        compteur += 1
-        if compteur == 30:
+        #time_tot += time.time() - start_tot
+        #compteur += 1
+        """if compteur == 30:
             print("\ntime forward: " + str(time_forward))
             print("time backward: " + str(time_backward))
             print("time loading: " + str(time_loading))
             print("time tocuda: " + str(time_tocuda))
             print("time criterion: " + str(time_criterion))
             print("time optimizer: " + str(time_optimizer))
-            print("time osef: " + str(time_osef))
-            print("time tot: " + str(time_tot))
+            print("time tocpu: " + str(time_tocpu))
+            print("time tot: " + str(time_tot))"""
     train_acc = np.mean(mean_correct)
     train_loss = loss_tot / num_samp_tot
     return train_acc, train_loss
@@ -145,12 +148,12 @@ def training(log_version, log_source):
     ])
 
     # load datasets
-    trainingSet = ModelTreesDataLoader(TRAIN_FILES, ROOT_DIR, split='train', transform=data_transform, frac=frac_training_data)
-    testingSet = ModelTreesDataLoader(TEST_FILES, ROOT_DIR, split='test', transform=data_transform, frac=frac_testing_data)
+    trainingSet = ModelTreesDataLoader(TRAIN_FILES, ROOT_DIR, split='train', transform=data_transform, do_update_caching=do_update_caching, frac=frac_training_data)
+    testingSet = ModelTreesDataLoader(TEST_FILES, ROOT_DIR, split='test', transform=data_transform, do_update_caching=do_update_caching, frac=frac_testing_data)
 
+    torch.manual_seed(42)
     trainDataLoader = DataLoader(trainingSet, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
     testDataLoader = DataLoader(testingSet, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
-    torch.manual_seed(2809)
 
     # get class weights:
     print('Calculating weights...')

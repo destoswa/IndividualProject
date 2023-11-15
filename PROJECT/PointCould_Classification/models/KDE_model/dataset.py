@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 
 class ModelTreesDataLoader(Dataset):
-    def __init__(self, csvfile, root_dir, split, transform, frac=1.0):
+    def __init__(self, csvfile, root_dir, split, transform, do_update_caching, frac=1.0):
         """
             Arguments:
                 :param csv_file (string): Path to the csv file with annotations
@@ -26,7 +26,8 @@ class ModelTreesDataLoader(Dataset):
         self.root_dir = root_dir
         pickle_dir = root_dir + 'tmp_grids_' + split + "/"
         self.pickle_dir = pickle_dir
-        if not do_test:
+        if do_update_caching:
+            self.clean_temp()
             os.mkdir(pickle_dir)
             os.mkdir(pickle_dir + "Garbage")
             os.mkdir(pickle_dir + "Multi")
@@ -34,10 +35,10 @@ class ModelTreesDataLoader(Dataset):
         self.data = pd.read_csv(root_dir + csvfile, delimiter=';')
         self.data = shuffle(self.data, random_state=42)
         #self.data = self.data.iloc[:int(frac * len(self.data))]
-        self.data = self.data.sample(frac=frac).reset_index(drop=True)
+        self.data = self.data.sample(frac=frac, random_state=42).reset_index(drop=True)
         print('Loading ', split, ' set...')
         for idx, samp in tqdm(self.data.iterrows(), total=len(self.data), smoothing=.9):
-            if not do_test:
+            if do_update_caching:
                 pcd_name = os.path.join(root_dir, samp['data'])
                 pcd = o3d.io.read_point_cloud(pcd_name)
                 pointCloud = np.asarray(pcd.points)
@@ -61,7 +62,7 @@ class ModelTreesDataLoader(Dataset):
             idx = idx.tolist()
 
         filename = self.data.iloc[idx, 0]
-        label = np.asarray(self.data.iloc[idx, 1])
+        #label = np.asarray(self.data.iloc[idx, 1])
 
         with open(self.pickle_dir + filename, 'rb') as file:
             sample = pickle.load(file)
@@ -79,10 +80,12 @@ class ModelTreesDataLoader(Dataset):
         return sample
 
     def clean_temp(self):
-        shutil.rmtree(self.pickle_dir)
+        if os.path.exists(self.pickle_dir):
+            shutil.rmtree(self.pickle_dir)
 
-from torch.utils.data import DataLoader
+
 if __name__ == '__main__':
+    from torch.utils.data import DataLoader
     ROOT_DIR = 'data/modeltrees_5200/'
     TRAIN_FILES = 'modeltrees_train.csv'
     trainingSet = ModelTreesDataLoader(TRAIN_FILES, ROOT_DIR, split='train', transform=None,

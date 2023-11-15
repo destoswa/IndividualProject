@@ -26,6 +26,8 @@ class ToKDE(object):
 
         # create KDE grid:
         grid = pcToGrid(pointCloud, self.grid_size, self.kernel_size)
+        min = np.min(grid)
+        max = np.max(grid)
         grid = gridNormalize(grid, 'minmax')
 
         return {'data': grid,
