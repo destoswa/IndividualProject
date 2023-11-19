@@ -9,8 +9,9 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from utils import *
 #from models.model import PointTransformerCls
-from models.model_globavg import PointTransformerCls
+#from models.model_globavg import PointTransformerCls
 #from models.model_deep import PointTransformerCls
+from models.model_globavg_deep import PointTransformerCls
 from visualization import show_log_train, show_confusion_matrix
 
 do_update_caching = False
@@ -20,13 +21,13 @@ batch_size = 12
 num_workers = 12
 learning_rate = 1e-3
 weight_decay = 1e-4
-kernel_size = 4
+kernel_size = 2
 
 frac_training_data = 1
 frac_testing_data = 1
-grid_dim = 64
+grid_size = 64
 
-ROOT_DIR = 'data/modeltrees_5200/'
+ROOT_DIR = 'data/modeltrees_12000/'
 TRAIN_FILES = 'modeltrees_train.csv'
 TEST_FILES = 'modeltrees_test.csv'
 with open(ROOT_DIR + '/modeltrees_shape_names.txt', 'r') as f:
@@ -142,14 +143,15 @@ def training(log_version, log_source):
         print("Cuda available")
 
     # transformation
+    kde_transform = ToKDE(grid_size, kernel_size)
     data_transform = transforms.Compose([
-        ToKDE(grid_dim, kernel_size),
-        ToTensor(),
+        RandRotate(),
+        RandScale(kernel_size),
     ])
 
     # load datasets
-    trainingSet = ModelTreesDataLoader(TRAIN_FILES, ROOT_DIR, split='train', transform=data_transform, do_update_caching=do_update_caching, frac=frac_training_data)
-    testingSet = ModelTreesDataLoader(TEST_FILES, ROOT_DIR, split='test', transform=data_transform, do_update_caching=do_update_caching, frac=frac_testing_data)
+    trainingSet = ModelTreesDataLoader(TRAIN_FILES, ROOT_DIR, split='train', transform=data_transform, do_update_caching=do_update_caching, kde_transform=kde_transform, frac=frac_training_data)
+    testingSet = ModelTreesDataLoader(TEST_FILES, ROOT_DIR, split='test', transform=[], do_update_caching=do_update_caching, kde_transform=kde_transform, frac=frac_testing_data)
 
     torch.manual_seed(42)
     trainDataLoader = DataLoader(trainingSet, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
@@ -171,7 +173,7 @@ def training(log_version, log_source):
     # create model
     conf = {
         "num_class": 3,
-        "grid_dim": grid_dim,
+        "grid_dim": grid_size
     }
     model = PointTransformerCls(conf).to('cuda:0')
     criterion = torch.nn.CrossEntropyLoss(weight=class_weights, reduction='mean')
@@ -217,7 +219,17 @@ def training(log_version, log_source):
 
             # save model
             print("Best results : saving model...")
-            torch.save(model.state_dict(), log_source + "/model_KDE.pth")
+            torch.save({
+                'epoch': epoch,
+                'batch_size': batch_size,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'test_accuracy': test_acc,
+                'test_class_acc': class_acc,
+                'test_loss': test_loss,
+                'train_acc': train_acc,
+                'train_loss': train_loss,
+            }, log_source + "/model_KDE.tar")
 
             # save preds and create confusion matrix
             conf_mat_data = {

@@ -1,16 +1,43 @@
 import numpy as np
 import torch
 from scipy.stats import multivariate_normal
+import random
 
 
-class ToTensor(object):
-    """Convert ndarrays in sample to Tensors."""
+class RandRotate(object):
+    """Rotate randomly"""
+    def __call__(self, sample):
+        num_rot = random.randint(0, 3)
+        sample['grid'] = torch.rot90(sample['grid'], num_rot, (0, 1))
+
+        return sample
+
+
+class RandScale(object):
+    """ randomly scale patches of values in sample """
+
+    def __init__(self, kernel_size):
+        self.kernel_size = kernel_size
 
     def __call__(self, sample):
-        data, label = sample['data'], sample['label']
+        idx_nonzeros = torch.nonzero(sample['grid'])
+        num_candidates = torch.count_nonzero(sample['grid'])
+        num_of_scales = random.randrange(0, int(num_candidates/self.kernel_size**3))
+        scales = [random.uniform(0.5, 1.5) for i in range(num_of_scales)]
+        #shuffle indices:
+        idx = torch.randperm(idx_nonzeros.shape[0])
+        idx_nonzeros = idx_nonzeros[idx, :]
+        #idx_nonzeros = idx_nonzeros.view(-1, 3)[idx, :].view(idx_nonzeros.size(), 3)
 
-        return {'data': torch.from_numpy(data),
-                'label': torch.from_numpy(np.asarray(label))}
+        idx_nonzeros = idx_nonzeros[0:num_of_scales]
+         # scales patches
+        for id_point, point in enumerate(idx_nonzeros):
+            sample['grid'][point[0] - self.kernel_size: point[0] + self.kernel_size,
+            point[0] - self.kernel_size: point[0] + self.kernel_size,
+            point[0] - self.kernel_size: point[0] + self.kernel_size] *= scales[id_point]
+        #grid[idx_nonzeros] = grid[idx_nonzeros] * scales
+
+        return sample
 
 
 class ToKDE(object):
@@ -26,24 +53,13 @@ class ToKDE(object):
 
         # create KDE grid:
         grid = pcToGrid(pointCloud, self.grid_size, self.kernel_size)
-        min = np.min(grid)
-        max = np.max(grid)
-        grid = gridNormalize(grid, 'minmax')
+
+        # to tensor
+        grid = torch.from_numpy(grid)
+        label = torch.from_numpy(np.asarray(sample['label']))
 
         return {'data': grid,
-                'label': sample['label']}
-
-
-def gridNormalize(grid, method='minmax'):
-    if method == 'minmax':
-        minVal = np.min(grid)
-        maxVal = np.max(grid)
-        grid = (grid - minVal)/(maxVal - minVal)
-    elif method == 'white':
-        raise NotImplementedError('This method still need to be implemented')
-    else:
-        raise ValueError('The parameter for the argument "method" is wrong.')
-    return grid
+                'label': label}
 
 
 def pcToGrid(data, grid_size, kernel_size):
@@ -64,12 +80,12 @@ def pcToGrid(data, grid_size, kernel_size):
         point = point.astype(int)
 
         # create KDE grid:
-        grid = pcToKDEgrid(grid, point, kernel_size)
+        grid = gridToKDEgrid(grid, point, kernel_size)
 
     return grid
 
 
-def pcToKDEgrid(grid, point_pos, kernel_size):
+def gridToKDEgrid(grid, point_pos, kernel_size):
     """ Create a grid with a KDE with respect to one point
         Input:
             GxGxG array: the grid to be updated
@@ -93,6 +109,11 @@ def pcToKDEgrid(grid, point_pos, kernel_size):
     return grid
 
 
+""" ----------------------------------- """
+""" ------ OLD USELESS FUNCTIONS ------ """
+""" ----------------------------------- """
+
+
 def pcNormalize(data):
     """ Normalize the data, use coordinates of the block centered at origin,
         Input:
@@ -107,3 +128,25 @@ def pcNormalize(data):
     pc = pc / m
     normal_data = pc
     return normal_data
+
+
+def gridNormalize(grid, method='minmax'):
+    if method == 'minmax':
+        minVal = np.min(grid)
+        maxVal = np.max(grid)
+        grid = (grid - minVal)/(maxVal - minVal)
+    elif method == 'white':
+        raise NotImplementedError('This method still need to be implemented')
+    else:
+        raise ValueError('The parameter for the argument "method" is wrong.')
+    return grid
+
+
+class ToTensor(object):
+    """Convert ndarrays in sample to Tensors."""
+
+    def __call__(self, sample):
+        data, label = sample['data'], sample['label']
+
+        return {'data': torch.from_numpy(data),
+                'label': torch.from_numpy(np.asarray(label))}
