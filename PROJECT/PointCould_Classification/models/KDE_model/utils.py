@@ -5,7 +5,12 @@ import random
 
 
 class RandRotate(object):
-    """Rotate randomly"""
+    """ Rotate randomly
+        Input:
+        GxGxG array: the grid to be updated
+    Output:
+        GxGxG array: the rotated grid
+    """
     def __call__(self, sample):
         num_rot = random.randint(0, 3)
         sample['grid'] = torch.rot90(sample['grid'], num_rot, (0, 1))
@@ -14,7 +19,12 @@ class RandRotate(object):
 
 
 class RandScale(object):
-    """ randomly scale patches of values in sample """
+    """ Randomly scale patches of values in sample
+        Input:
+        GxGxG array: the grid to be updated
+    Output:
+        GxGxG array: the scaled grid
+    """
 
     def __init__(self, kernel_size):
         self.kernel_size = kernel_size
@@ -24,24 +34,23 @@ class RandScale(object):
         num_candidates = torch.count_nonzero(sample['grid'])
         num_of_scales = random.randrange(0, int(num_candidates/self.kernel_size**3))
         scales = [random.uniform(0.5, 1.5) for i in range(num_of_scales)]
-        #shuffle indices:
+
+        # shuffle indices:
         idx = torch.randperm(idx_nonzeros.shape[0])
         idx_nonzeros = idx_nonzeros[idx, :]
-        #idx_nonzeros = idx_nonzeros.view(-1, 3)[idx, :].view(idx_nonzeros.size(), 3)
-
         idx_nonzeros = idx_nonzeros[0:num_of_scales]
-         # scales patches
+
+        # scales patches
         for id_point, point in enumerate(idx_nonzeros):
             sample['grid'][point[0] - self.kernel_size: point[0] + self.kernel_size,
             point[0] - self.kernel_size: point[0] + self.kernel_size,
             point[0] - self.kernel_size: point[0] + self.kernel_size] *= scales[id_point]
-        #grid[idx_nonzeros] = grid[idx_nonzeros] * scales
 
         return sample
 
 
 class ToKDE(object):
-    """Convert pointCloud to KDE vector"""
+    """ Convert pointCloud to KDE vector """
 
     def __init__(self, grid_size, kernel_size):
         self.grid_size = grid_size
@@ -110,8 +119,8 @@ def gridToKDEgrid(grid, point_pos, kernel_size):
 
 
 """ ----------------------------------- """
-""" ------ OLD USELESS FUNCTIONS ------ """
-""" ----------------------------------- """
+""" --|--- OLD USELESS FUNCTIONS ---|-- """
+""" --v-----------------------------v-- """
 
 
 def pcNormalize(data):

@@ -5,11 +5,10 @@ import torch
 import pickle
 import pandas as pd
 from torch.utils.data import Dataset
-from sklearn.utils import shuffle
 import open3d as o3d
 import concurrent.futures
-from tqdm import tqdm
 from functools import partial
+from tqdm import tqdm
 
 
 class ModelTreesDataLoader(Dataset):
@@ -35,7 +34,6 @@ class ModelTreesDataLoader(Dataset):
             os.mkdir(pickle_dir + "Multi")
             os.mkdir(pickle_dir + "Single")
         self.data = pd.read_csv(root_dir + csvfile, delimiter=';')
-        self.data = shuffle(self.data, random_state=42)
         self.data = self.data.sample(frac=frac, random_state=42).reset_index(drop=True)
 
         print('Loading ', split, ' set...')

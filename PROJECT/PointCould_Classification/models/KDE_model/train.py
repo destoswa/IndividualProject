@@ -146,12 +146,12 @@ def training(log_version, log_source):
     kde_transform = ToKDE(grid_size, kernel_size)
     data_transform = transforms.Compose([
         RandRotate(),
-        RandScale(kernel_size),
+        #RandScale(kernel_size),
     ])
 
     # load datasets
     trainingSet = ModelTreesDataLoader(TRAIN_FILES, ROOT_DIR, split='train', transform=data_transform, do_update_caching=do_update_caching, kde_transform=kde_transform, frac=frac_training_data)
-    testingSet = ModelTreesDataLoader(TEST_FILES, ROOT_DIR, split='test', transform=[], do_update_caching=do_update_caching, kde_transform=kde_transform, frac=frac_testing_data)
+    testingSet = ModelTreesDataLoader(TEST_FILES, ROOT_DIR, split='test', transform=None, do_update_caching=do_update_caching, kde_transform=kde_transform, frac=frac_testing_data)
 
     torch.manual_seed(42)
     trainDataLoader = DataLoader(trainingSet, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
@@ -245,17 +245,12 @@ def training(log_version, log_source):
             writer = csv.writer(file, delimiter=';')
             writer.writerow([str(x) for x in line_log])
 
-    # erase cache folders
-    """trainingSet.clean_temp()
-    testingSet.clean_temp()"""
-
     # best results
     print("\n==============\n")
     print("BEST RESULTS ON EPOCH ", best_epoch+1)
     print("BEST TEST ACC: ", best_test_acc)
     print("BEST TEST CLASS ACC: ", best_test_class_acc)
     print("BEST TEST LOSS: ", best_test_loss)
-
 
 
 def main():
