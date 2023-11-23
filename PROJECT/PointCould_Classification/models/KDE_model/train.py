@@ -15,6 +15,7 @@ from models.model_globavg_deep import PointTransformerCls
 from visualization import show_log_train, show_confusion_matrix
 
 do_update_caching = False
+do_continue_from_existing_model = False
 num_class = 3
 num_epoch = 100
 batch_size = 12
@@ -22,14 +23,15 @@ num_workers = 12
 learning_rate = 1e-3
 weight_decay = 1e-4
 kernel_size = 2
+grid_size = 64
 
 frac_training_data = 1
 frac_testing_data = 1
-grid_size = 64
 
 ROOT_DIR = 'data/modeltrees_12000/'
 TRAIN_FILES = 'modeltrees_train.csv'
 TEST_FILES = 'modeltrees_test.csv'
+PRETRAINED_DIR = 'models/pretrained/'
 with open(ROOT_DIR + '/modeltrees_shape_names.txt', 'r') as f:
     SAMPLE_LABELS = f.read().splitlines()
 
@@ -146,7 +148,7 @@ def training(log_version, log_source):
     kde_transform = ToKDE(grid_size, kernel_size)
     data_transform = transforms.Compose([
         RandRotate(),
-        #RandScale(kernel_size),
+        RandScale(kernel_size),
     ])
 
     # load datasets
@@ -191,7 +193,14 @@ def training(log_version, log_source):
     best_test_class_acc = 0
     best_test_loss = 0
     best_epoch = 0
-    for epoch in range(num_epoch):
+    range_epochs = range(num_epoch)
+    if do_continue_from_existing_model:
+        checkpoint = torch.load(PRETRAINED_DIR + 'model_KDE.tar')
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        range_epochs = range(checkpoint['epoch'], num_epoch)
+
+    for epoch in range_epochs:
         line_log = []
 
         # training
