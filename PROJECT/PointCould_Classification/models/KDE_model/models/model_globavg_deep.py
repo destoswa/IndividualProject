@@ -118,14 +118,21 @@ class PointTransformerCls(nn.Module):
         x = self.relu(self.bn11(self.conv11(x)))  # B x 1024 x N/32 x N/32 x N/32
         x = self.relu(self.bn12(self.conv12(x)))  # B x 1024 x N/32 x N/32 x N/32
 
-        # global averaging
+        # Residual FC layer
         #x = self.relu(self.bn11(self.conv11(x)))  # B x C x N/16 x N/16 x N/16
+        y = x
         x = self.relu(self.bn13(self.conv13(x)))  # B x C x N/32 x N/32 x N/32
+        y = self.gap(y)  # B x 1024 x 1 x 1 x 1
+        y = y.reshape((batch_size, 1024))  # B x C
+        y = self.relu(self.do(self.linear1(y)))  # B x 512
+        y = self.relu(self.do(self.linear2(y)))  # B x 256
+        y = self.relu(self.do(self.linear3(y)))  # B x 128
+        y = self.relu(self.do(self.linear4(y)))  # B x C
         x = self.gap(x)  # B x C x 1 x 1 x 1
         x = x.reshape((batch_size, self.output_channels))  # B x C
         #x = x.reshape((batch_size, 1024))  # B x 1024
         #x = x.reshape((batch_size, 512))  # B x 512
-        x = self.softmax(x)
+        x = self.softmax(x + y)
         # fully connected layers
         #x = self.relu(self.do(self.linear1(x)))  # B x 512
         """x = self.relu(self.do(self.linear2(x)))  # B x 256

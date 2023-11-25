@@ -2,6 +2,8 @@ import os
 import csv
 import pandas as pd
 import time
+
+import torch
 from tqdm import tqdm
 from sklearn.utils.class_weight import compute_class_weight
 from dataset import ModelTreesDataLoader
@@ -15,11 +17,15 @@ from models.model_globavg_deep import PointTransformerCls
 from visualization import show_log_train, show_confusion_matrix
 
 do_update_caching = False
-do_continue_from_existing_model = False
+do_continue_from_existing_model = True
 num_class = 3
-num_epoch = 100
-batch_size = 12
-num_workers = 12
+num_epoch = 200
+if do_continue_from_existing_model:
+    batch_size = 8
+    num_workers = 8
+else:
+    batch_size = 12
+    num_workers = 12
 learning_rate = 1e-3
 weight_decay = 1e-4
 kernel_size = 2
@@ -177,7 +183,7 @@ def training(log_version, log_source):
         "num_class": 3,
         "grid_dim": grid_size
     }
-    model = PointTransformerCls(conf).to('cuda:0')
+    model = PointTransformerCls(conf).to(torch.device('cuda'))
     criterion = torch.nn.CrossEntropyLoss(weight=class_weights, reduction='mean')
     optimizer = torch.optim.Adam(
         model.parameters(),
@@ -187,19 +193,20 @@ def training(log_version, log_source):
         weight_decay=weight_decay
     )
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.3)
-
-    # loop on epochs
-    best_test_acc = 0
-    best_test_class_acc = 0
-    best_test_loss = 0
-    best_epoch = 0
     range_epochs = range(num_epoch)
     if do_continue_from_existing_model:
         checkpoint = torch.load(PRETRAINED_DIR + 'model_KDE.tar')
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         range_epochs = range(checkpoint['epoch'], num_epoch)
+        model.train()
+        del checkpoint
 
+    # loop on epochs
+    best_test_acc = 0
+    best_test_class_acc = 0
+    best_test_loss = 0
+    best_epoch = 0
     for epoch in range_epochs:
         line_log = []
 
