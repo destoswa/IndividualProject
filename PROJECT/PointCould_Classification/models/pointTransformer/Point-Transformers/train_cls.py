@@ -101,7 +101,7 @@ def main(args):
     '''DATA LOADING'''
     logger.info('Load dataset ...')
     #DATA_PATH = hydra.utils.to_absolute_path('data/modelnet40_normal_resampled/')
-    DATA_PATH = hydra.utils.to_absolute_path('data/modeltrees_5200_FIXEDSIZE_1024/')
+    DATA_PATH = hydra.utils.to_absolute_path('data/modeltrees_12000_FIXEDSIZE_1024/')
     with open(DATA_PATH + '\modeltrees_shape_names.txt', 'r') as f:
         SAMPLE_LABELS = f.read().splitlines()
     TRAIN_DATASET = ModelNetDataLoader(root=DATA_PATH, npoint=args.num_point, split='train', normal_channel=args.normal)

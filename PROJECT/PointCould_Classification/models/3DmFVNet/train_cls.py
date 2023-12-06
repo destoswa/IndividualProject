@@ -10,7 +10,7 @@ import argparse
 import tensorflow as tf
 print(tf.config.list_physical_devices('GPU'))
 import pickle
-import tqdm
+from tqdm import tqdm
 import time
 import open3d as o3d
 
@@ -36,7 +36,7 @@ TEST_FILES = provider.getDataFiles(\
     os.path.join(BASE_DIR, 'data/modelnet'+str(NUM_CLASSES)+'_ply_hdf5_'+ str(MAX_N_POINTS)+ '/test_files.txt'))
 LABEL_MAP = provider.getDataFiles(\
     os.path.join(BASE_DIR, 'data/modelnet'+str(NUM_CLASSES)+'_ply_hdf5_'+ str(MAX_N_POINTS)+ '/shape_names.txt'))"""
-DATA_LOC = 'data/modeltrees_5200/'
+DATA_LOC = 'data/modeltrees_12000/'
 TRAIN_FILES = DATA_LOC + 'modeltrees_train.csv'
 TEST_FILES = DATA_LOC + 'modeltrees_test.csv'
 LABEL_MAP = provider.getDataFiles(DATA_LOC + 'modeltrees_shape_names.txt')
@@ -54,8 +54,8 @@ parser.add_argument('--gpu', type=int, default=2, help='GPU to use [default: GPU
 parser.add_argument('--model', default='3dmfv_net_cls', help='Model name [default: 3dmfv_net_cls]')
 parser.add_argument('--log_dir', default='log_trial', help='Log dir [default: log]')
 parser.add_argument('--num_point', type=int, default=1024, help='Point Number [256/512/1024/2048] [default: 1024]')
-parser.add_argument('--max_epoch', type=int, default=20, help='Epoch to run [default: 200]')
-parser.add_argument('--batch_size', type=int, default=64, help='Batch Size during training [default: 64]')
+parser.add_argument('--max_epoch', type=int, default=50, help='Epoch to run [default: 200]')
+parser.add_argument('--batch_size', type=int, default=16, help='Batch Size during training [default: 64]')
 parser.add_argument('--learning_rate', type=float, default=0.001, help='Initial learning rate [default: 0.001]')
 parser.add_argument('--momentum', type=float, default=0.9, help='Initial learning rate [default: 0.9]')
 parser.add_argument('--optimizer', default='adam', help='adam or momentum [default: adam]')
@@ -277,20 +277,20 @@ def train_one_epoch(sess, ops, gmm, train_writer):
 
     #file_size = current_data.shape[0]
     file_size = len(current_data)
-    num_batches = file_size / BATCH_SIZE
+    num_batches = int(file_size / BATCH_SIZE)
 
     total_correct = 0
     total_seen = 0
     loss_sum = 0
 
-    for batch_idx in range(int(num_batches)):
+    for batch_idx in tqdm(range(num_batches), total=num_batches, smoothing=0.9):
         start_idx = batch_idx * BATCH_SIZE
         end_idx = (batch_idx + 1) * BATCH_SIZE
 
         # Creation of fv for each file:
         #fv = np.zeros((1, 7*125))
         fv = np.zeros((1, N_PARAM*N_GAUSSIANS**3))
-        print(f"Extracting data from batch {batch_idx+1}/{int(num_batches)} and creation of fisher vectors...")
+        #print(f"Extracting data from batch {batch_idx+1}/{int(num_batches)} and creation of fisher vectors...")
         for file in current_data[start_idx:end_idx]:
             pcd = o3d.io.read_point_cloud(DATA_LOC + file)
             point_set = np.asarray(pcd.points)
@@ -384,13 +384,13 @@ def eval_one_epoch(sess, ops, gmm, test_writer, log_dir):
     file_size = len(current_data)
     num_batches = int(file_size / BATCH_SIZE)
 
-    for batch_idx in range(num_batches):
+    for batch_idx in tqdm(range(num_batches), total=num_batches, smoothing=0.9):
         start_idx = batch_idx * BATCH_SIZE
         end_idx = (batch_idx + 1) * BATCH_SIZE
 
         # Creation of fv for each file:
         fv = np.zeros((1, N_PARAM * N_GAUSSIANS**3))
-        print(f"Extracting data from batch {batch_idx+1}/{int(num_batches)} and creation of fisher vectors...")
+        #print(f"Extracting data from batch {batch_idx+1}/{int(num_batches)} and creation of fisher vectors...")
         for file in current_data[start_idx:end_idx]:
             pcd = o3d.io.read_point_cloud(DATA_LOC + file)
             point_set = np.asarray(pcd.points)
@@ -518,13 +518,13 @@ def export_visualizations(gmm, log_dir):
             file_size = len(current_data)
             num_batches = int(file_size / BATCH_SIZE)
 
-            for batch_idx in range(num_batches):
+            for batch_idx in tqdm(range(num_batches), total=num_batches, smoothing=0.9):
                 start_idx = batch_idx * BATCH_SIZE
                 end_idx = (batch_idx + 1) * BATCH_SIZE
 
                 # Creation of fv for each file:
                 fv = np.zeros((1, N_PARAM * N_GAUSSIANS**3))
-                print(f"Extracting data from batch {batch_idx+1}/{int(num_batches)} and creation of fisher vectors...")
+                #print(f"Extracting data from batch {batch_idx+1}/{int(num_batches)} and creation of fisher vectors...")
                 for file in current_data[start_idx:end_idx]:
                     pcd = o3d.io.read_point_cloud(DATA_LOC + file)
                     point_set = np.asarray(pcd.points)

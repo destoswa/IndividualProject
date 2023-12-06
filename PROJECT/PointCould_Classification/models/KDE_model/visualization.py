@@ -2,6 +2,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 from sklearn.metrics import confusion_matrix
 import matplotlib.cm as cm
+import seaborn as sn
 import itertools
 import pandas as pd
 
@@ -58,28 +59,29 @@ def show_confusion_matrix(target_src, y_pred, y_true, class_labels, epoch=0, do_
     y_true = df_data['target'].to_list()
     y_pred = df_data['pred'].to_list()"""
     n_classes = len(class_labels)
-    conf_mat = confusion_matrix(y_true, y_pred, labels=range(0, n_classes))
-
+    conf_mat = confusion_matrix(y_true, y_pred, labels=range(0, n_classes), normalize='true')
+    df_conf_mat = pd.DataFrame(conf_mat, index=class_labels, columns=class_labels)
     fig = plt.figure()
-    plt.imshow(conf_mat, cmap=cm.jet)
+    #plt.imshow(conf_mat, cmap=cm.jet)
+    sn.heatmap(df_conf_mat, annot=True, cmap=sn.color_palette("Blues", as_cmap=True))
     ax = plt.gca()
     ax.set_title('Confusion Matrix - epoch ' + str(epoch + 1))
 
     # Write the labels for each row and column
-    if class_labels is not None:
+    """if class_labels is not None:
         tick_marks = np.arange(len(class_labels))
         plt.xticks(tick_marks, class_labels, rotation=90, fontsize=8)
-        plt.yticks(tick_marks, class_labels, fontsize=8)
+        plt.yticks(tick_marks, class_labels, fontsize=8)"""
 
     # Write the values in the center of the cell
-    for i, j in itertools.product(range(conf_mat.shape[0]), range(conf_mat.shape[1])):
-        plt.text(j, i, conf_mat[i, j],
+    """for i, j in itertools.product(range(conf_mat.shape[0]), range(conf_mat.shape[1])):
+        plt.text(j, i, round(conf_mat[i, j], 2),
                  horizontalalignment="center", fontsize=8,
-                 color="white")
+                 color="white")"""
 
     plt.tight_layout()
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
+    plt.ylabel('True labels')
+    plt.xlabel('Predicted labels')
     fig.tight_layout()
 
     if do_save:
@@ -90,11 +92,11 @@ def show_confusion_matrix(target_src, y_pred, y_true, class_labels, epoch=0, do_
 
 
 if __name__ == '__main__':
-    src = "./log/cls/Menghao/temp_results"
+    src = "./log/test/"
     version = 0
-    best_epoch = 2
+    best_epoch = 84
     SAMPLE_LABELS = ['Garbage', 'Multi', 'Single']
-    """show_log_train(src + '/logs_v' + str(version)+'.csv', src, do_show=True)
-    show_confusion_matrix(src + '/confmat_v' + str(version) + '.csv', src, SAMPLE_LABELS, best_epoch, do_show=True)"""
-    show_log_train(src + '/logs_v1_nodataaug_100epoch.csv', src, do_show=True)
-    show_confusion_matrix(src + '/confmat_v1_nodataaug_100epoch.csv', src, SAMPLE_LABELS, best_epoch, do_show=True)
+    df_data = pd.read_csv(src + "confmat_v2.csv", sep=';')
+    preds = df_data.pred.values
+    targets = df_data.target.values
+    show_confusion_matrix(src, preds, targets, SAMPLE_LABELS, best_epoch, do_show=True, do_save=True)
