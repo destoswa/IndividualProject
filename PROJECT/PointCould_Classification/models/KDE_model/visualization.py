@@ -42,6 +42,8 @@ def show_log_train(data_src, target_src, do_save=True, do_show=False):
     if do_show:
         plt.show()
 
+    plt.clf()
+
 
 def show_confusion_matrix(target_src, y_pred, y_true, class_labels, epoch=0, do_save=True, do_show=False):
     """
@@ -90,13 +92,55 @@ def show_confusion_matrix(target_src, y_pred, y_true, class_labels, epoch=0, do_
     if do_show:
         plt.show()
 
+    plt.clf()
+
+
+def show_grid_search(target_src, data, title, do_save=True, do_show=False):
+    """
+        plots the results of grid search on kernel
+        :param target_src : location of saved image
+        :param data: values to plot and values of hyperparameters
+        :param title: title of the figure
+        :param do_save: saves the image
+        :param do_show: shows the image
+        :return: None (just plots)
+        """
+    fig, ax = plt.subplots()
+    X = data.iloc[:, 0].unique()
+    Y = data.iloc[:, 1].unique()
+    Z = np.zeros((len(X), len(Y)))
+    for i, x in enumerate(X):
+        for j, y in enumerate(Y):
+            Z[j, i] = data[(data.iloc[:, 0] == x) & (data.iloc[:, 1] == y)].iloc[0, 2]
+    c = plt.pcolor(X, Y, Z, cmap='coolwarm')
+    ax.set_title(title)
+    ax.set_xlabel('Kernel size')
+    ax.set_ylabel('number of repetition')
+    ax.set_xticks(X)
+    ax.set_yticks(Y)
+    cbar = fig.colorbar(c, ax=ax)
+    cbar.set_label('Accuracy [-]')
+    if do_save:
+        plt.savefig(f'{target_src}grid_search_{title.replace(" ", "_")}.png')
+
+    if do_show:
+        plt.show()
+
+    plt.clf()
+
 
 if __name__ == '__main__':
-    src = "./log/test/"
+    """src = "./log/test/"
     version = 0
     best_epoch = 84
     SAMPLE_LABELS = ['Garbage', 'Multi', 'Single']
     df_data = pd.read_csv(src + "confmat_v2.csv", sep=';')
     preds = df_data.pred.values
     targets = df_data.target.values
-    show_confusion_matrix(src, preds, targets, SAMPLE_LABELS, best_epoch, do_show=True, do_save=True)
+    show_confusion_matrix(src, preds, targets, SAMPLE_LABELS, best_epoch, do_show=True, do_save=True)"""
+    df_test_sgs = pd.DataFrame(columns=['kernel_size', 'number_repeat', 'overall_acc'])
+    for i in range(2):
+        for j in range(2):
+            df_test_sgs.loc[len(df_test_sgs)] = [i,j,42 - i - j]
+
+    show_grid_search('./log/grid_test/', df_test_sgs, 'test', do_save=True, do_show=True)

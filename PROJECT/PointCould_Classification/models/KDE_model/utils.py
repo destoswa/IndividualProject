@@ -52,16 +52,21 @@ class RandScale(object):
 class ToKDE(object):
     """ Convert pointCloud to KDE vector """
 
-    def __init__(self, grid_size, kernel_size):
+    def __init__(self, grid_size, kernel_size, num_repeat):
         self.grid_size = grid_size
         self.kernel_size = kernel_size
+        self.num_repeat = num_repeat
 
     def __call__(self, sample):
         pointCloud = sample['data']
         pointCloud = pcNormalize(pointCloud)
 
-        # create KDE grid:
-        grid = pcToGrid(pointCloud, self.grid_size, self.kernel_size)
+        # create grid:
+        grid = pcToGrid(pointCloud, self.grid_size)
+
+        # apply KDE:
+        for rep in range(self.num_repeat):
+            grid = applyKDE(grid, self.grid_size, self.kernel_size, self.num_repeat)
 
         # to tensor
         grid = torch.from_numpy(grid)
@@ -71,7 +76,7 @@ class ToKDE(object):
                 'label': label}
 
 
-def pcToGrid(data, grid_size, kernel_size):
+def pcToGrid(data, grid_size):
     """ Create a grid with a KDE with respect to the point cloud
         Input:
             GxGxG array: the grid to be updated
@@ -88,13 +93,16 @@ def pcToGrid(data, grid_size, kernel_size):
             point[idx] = int((pos + 1)/2*grid_size)
         point = point.astype(int)
 
+        # add point to grid
+        grid[point[0], point[1], point[2]] = 1
+
         # create KDE grid:
-        grid = gridToKDEgrid(grid, point, kernel_size)
+        #grid = applyKDE(grid, point, kernel_size)
 
     return grid
 
 
-def gridToKDEgrid(grid, point_pos, kernel_size):
+def applyKDE(grid, grid_size, kernel_size, num_repeat):
     """ Create a grid with a KDE with respect to one point
         Input:
             GxGxG array: the grid to be updated
@@ -105,22 +113,19 @@ def gridToKDEgrid(grid, point_pos, kernel_size):
     """
     x, y, z = np.mgrid[-1:1.1:(1 / kernel_size), -1:1.1:(1 / kernel_size), -1:1.1:(1 / kernel_size)]
     pos = np.stack((x, y, z), axis=-1)
-    rv = multivariate_normal([0, 0, 0], .2)
-    point_grid = rv.pdf(pos)
-    for i in range(len(x)):
-        for j in range(len(y)):
-            for k in range(len(z)):
-                x_grid = point_pos[0] - kernel_size + i
-                y_grid = point_pos[1] - kernel_size + j
-                z_grid = point_pos[2] - kernel_size + k
-                if grid.shape[0] > x_grid >= 0 and grid.shape[1] > y_grid >= 0 and grid.shape[2] > z_grid >= 0:
-                    grid[x_grid, y_grid, z_grid] += point_grid[i, j, k]
-    return grid
+    rv = multivariate_normal([0, 0, 0])
+    point_grid = rv.pdf(pos)*10
+    new_grid = np.zeros((grid_size + 2 * kernel_size, grid_size + 2 * kernel_size, grid_size + 2 * kernel_size))
+    lst_pos = np.where(grid != 0)
 
+    for ind in range(len(lst_pos[0])):
+        coeff = grid[lst_pos[0][ind], lst_pos[1][ind], lst_pos[2][ind]]
+        new_grid[lst_pos[0][ind]: lst_pos[0][ind] + 2 * kernel_size + 1,
+        lst_pos[1][ind]: lst_pos[1][ind] + 2 * kernel_size + 1,
+        lst_pos[2][ind]: lst_pos[2][ind] + 2 * kernel_size + 1,
+        ] += point_grid * coeff
 
-""" ----------------------------------- """
-""" --|--- OLD USELESS FUNCTIONS ---|-- """
-""" --v-----------------------------v-- """
+    return new_grid[kernel_size:-kernel_size, kernel_size:-kernel_size, kernel_size:-kernel_size]
 
 
 def pcNormalize(data):
@@ -137,6 +142,11 @@ def pcNormalize(data):
     pc = pc / m
     normal_data = pc
     return normal_data
+
+
+""" ----------------------------------- """
+""" --|--- OLD USELESS FUNCTIONS ---|-- """
+""" --v-----------------------------v-- """
 
 
 def gridNormalize(grid, method='minmax'):

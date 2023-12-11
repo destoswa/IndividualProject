@@ -16,10 +16,10 @@ from utils import *
 from models.model_globavg_deep import PointTransformerCls
 from visualization import show_log_train, show_confusion_matrix
 
-do_update_caching = False
-do_continue_from_existing_model = True
+do_update_caching = True
+do_continue_from_existing_model = False
 num_class = 3
-num_epoch = 200
+num_epoch = 100
 if do_continue_from_existing_model:
     batch_size = 8
     num_workers = 8
@@ -29,8 +29,8 @@ else:
 learning_rate = 1e-3
 weight_decay = 1e-4
 kernel_size = 2
+num_repeat_kernel = 2
 grid_size = 64
-
 frac_training_data = 1
 frac_testing_data = 1
 
@@ -109,7 +109,7 @@ def train_epoch(trainDataLoader, model, optimizer, criterion):
     return train_acc, train_loss
 
 
-def test_epoch(testDataLoader, model, criterion):
+def test_epoch(testDataLoader, model, criterion, num_class):
     loss_tot = 0
     mean_correct = []
     pred_tot = []
@@ -141,7 +141,7 @@ def test_epoch(testDataLoader, model, criterion):
     return test_acc, test_loss, class_acc, pred_tot, target_tot
 
 
-def training(log_version, log_source):
+def training(log_version, log_source, args):
     # check torch and if cuda is available
     print("torch version : " + torch.__version__)
     print('device : ' + torch.cuda.get_device_name())
@@ -151,19 +151,19 @@ def training(log_version, log_source):
         print("Cuda available")
 
     # transformation
-    kde_transform = ToKDE(grid_size, kernel_size)
+    kde_transform = ToKDE(args['grid_size'], args['kernel_size'], args['num_repeat_kernel'])
     data_transform = transforms.Compose([
         RandRotate(),
-        RandScale(kernel_size),
+        RandScale(args['kernel_size']),
     ])
 
     # load datasets
-    trainingSet = ModelTreesDataLoader(TRAIN_FILES, ROOT_DIR, split='train', transform=data_transform, do_update_caching=do_update_caching, kde_transform=kde_transform, frac=frac_training_data)
-    testingSet = ModelTreesDataLoader(TEST_FILES, ROOT_DIR, split='test', transform=None, do_update_caching=do_update_caching, kde_transform=kde_transform, frac=frac_testing_data)
+    trainingSet = ModelTreesDataLoader(TRAIN_FILES, ROOT_DIR, split='train', transform=data_transform, do_update_caching=args['do_update_caching'], kde_transform=kde_transform, frac=args['frac_training'])
+    testingSet = ModelTreesDataLoader(TEST_FILES, ROOT_DIR, split='test', transform=None, do_update_caching=args['do_update_caching'], kde_transform=kde_transform, frac=args['frac_testing'])
 
     torch.manual_seed(42)
-    trainDataLoader = DataLoader(trainingSet, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
-    testDataLoader = DataLoader(testingSet, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
+    trainDataLoader = DataLoader(trainingSet, batch_size=args['batch_size'], shuffle=True, num_workers=args['num_workers'], pin_memory=True)
+    testDataLoader = DataLoader(testingSet, batch_size=args['batch_size'], shuffle=True, num_workers=args['num_workers'], pin_memory=True)
 
     # get class weights:
     print('Calculating weights...')
@@ -180,25 +180,25 @@ def training(log_version, log_source):
 
     # create model
     conf = {
-        "num_class": 3,
-        "grid_dim": grid_size
+        "num_class": num_class,
+        "grid_dim": args['grid_size']
     }
     model = PointTransformerCls(conf).to(torch.device('cuda'))
     criterion = torch.nn.CrossEntropyLoss(weight=class_weights, reduction='mean')
     optimizer = torch.optim.Adam(
         model.parameters(),
-        lr=learning_rate,
+        lr=args['learning_rate'],
         betas=(0.9, 0.999),
         eps=1e-08,
-        weight_decay=weight_decay
+        weight_decay=args['weight_decay']
     )
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.3)
-    range_epochs = range(num_epoch)
-    if do_continue_from_existing_model:
+    range_epochs = range(args['num_epoch'])
+    if args['do_continue_from_existing_model']:
         checkpoint = torch.load(PRETRAINED_DIR + 'model_KDE.tar')
         model.load_state_dict(checkpoint['model_state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        range_epochs = range(checkpoint['epoch'], num_epoch)
+        range_epochs = range(checkpoint['epoch'], args['num_epoch'])
         model.train()
         del checkpoint
 
@@ -211,7 +211,7 @@ def training(log_version, log_source):
         line_log = []
 
         # training
-        print(f"Training on epoch {str(epoch+1)}/{str(num_epoch)}:")
+        print(f"Training on epoch {str(epoch+1)}/{str(args['num_epoch'])}:")
         train_acc, train_loss = train_epoch(trainDataLoader, model, optimizer, criterion)
         scheduler.step()
         line_log.append((train_acc, train_loss))
@@ -221,7 +221,7 @@ def training(log_version, log_source):
 
         # testing
         with torch.no_grad():
-            test_acc, test_loss, class_acc, preds_test, targets_test = test_epoch(testDataLoader, model, criterion)
+            test_acc, test_loss, class_acc, preds_test, targets_test = test_epoch(testDataLoader, model, criterion, args['num_class'])
         line_log.append((test_acc, class_acc, test_loss))
         line_log = [el for sublists in line_log for el in sublists]     # flatten list
         print("Testing acc : ", test_acc)
@@ -237,7 +237,7 @@ def training(log_version, log_source):
             print("Best results : saving model...")
             torch.save({
                 'epoch': epoch,
-                'batch_size': batch_size,
+                'batch_size': args['batch_size'],
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'test_accuracy': test_acc,
@@ -253,11 +253,11 @@ def training(log_version, log_source):
                 'target': targets_test,
             }
             df_conf_mat_data = pd.DataFrame(conf_mat_data)
-            df_conf_mat_data.to_csv('./log/' + str(log_version) + '/confmat.csv', index=False, sep=';')
+            df_conf_mat_data.to_csv(log_source + '/confmat.csv', index=False, sep=';')
             show_confusion_matrix(log_source, preds_test, targets_test, SAMPLE_LABELS, epoch=best_epoch)
 
         # update logs
-        with open('./log/' + str(log_version) + '/logs.csv', 'a', newline='') as file:
+        with open(log_source + '/logs.csv', 'a', newline='') as file:
             writer = csv.writer(file, delimiter=';')
             writer.writerow([str(x) for x in line_log])
 
@@ -268,22 +268,39 @@ def training(log_version, log_source):
     print("BEST TEST CLASS ACC: ", best_test_class_acc)
     print("BEST TEST LOSS: ", best_test_loss)
 
+    return best_test_acc, best_test_class_acc
+
 
 def main():
     # create csv of logs:
     version = 0
     while os.path.exists('./log/' + str(version)):
         version += 1
-    os.mkdir('./log/' + str(version))
-    log_file_root = './log/' + str(version)
-    log_file = './log/' + str(version) + '/logs.csv'
+    log_file_root = './log/' + str(version) + '/'
+    os.mkdir(log_file_root)
+    log_file = log_file_root + '/logs.csv'
     with open(log_file, 'w', newline='') as file:
         writer = csv.writer(file, delimiter=';')
         writer.writerow(['train_acc', 'train_loss', 'test_acc', 'test_class_acc', 'test_loss'])
 
     # Training
+    args_training = {
+        'do_update_caching': do_update_caching,
+        'do_continue_from_existing_model': do_continue_from_existing_model,
+        'num_class': num_class,
+        'num_epoch': num_epoch,
+        'batch_size': batch_size,
+        'num_workers': num_workers,
+        'learning_rate': learning_rate,
+        'weight_decay': weight_decay,
+        'kernel_size': kernel_size,
+        'num_repeat_kernel': num_repeat_kernel,
+        'grid_size': grid_size,
+        'frac_training': frac_training_data,
+        'frac_testing': frac_testing_data,
+    }
     start_time = time.time()
-    training(version, log_file_root)
+    _, _ = training(version, log_file_root, args_training)
     end_time = time.time()
 
     # Plots of results
