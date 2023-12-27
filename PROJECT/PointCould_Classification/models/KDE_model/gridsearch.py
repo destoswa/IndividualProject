@@ -11,6 +11,9 @@ def main():
     lst_repeat_kernel = range(1, 4)
     args_training = {
         'do_update_caching': True,
+        'do_preprocess': False,
+        'do_augment': False,
+        'frac_train': .8,
         'do_continue_from_existing_model': False,
         'num_class': 3,
         'num_epoch': 10,
@@ -53,12 +56,12 @@ def main():
                 writer = csv.writer(file, delimiter=';')
                 writer.writerow(['train_acc', 'train_loss', 'test_acc', 'test_class_acc', 'test_loss'])
 
-            # Training
+            # training
             start_time = time.time()
             OA, AA = training(version, log_file_root, args_training)
             end_time = time.time()
 
-            # Saving results
+            # saving results
             show_log_train(log_file, log_file_root, do_save=True, do_show=False)
             df_res.loc[len(df_res)] = [kernel_size, repeat_kernel, OA, AA]
 

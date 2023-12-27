@@ -63,24 +63,6 @@ class PointTransformerCls(nn.Module):
 
         # convolution layer 1
         x = self.relu(self.bn1(self.conv1(x)))  # B x 32 x N x N x N
-        """min = torch.min(x)
-        max = torch.max(x)
-        num = torch.sum(x[x != 0])"""
-        #x = self.conv1(x)  # B x 32 x N x N x N
-        # whitening
-        """min = torch.min(x)
-        max = torch.max(x)
-        num = torch.sum(x[x != 0])"""
-        #norm = torch.norm(x, dim=1).reshape((batch_size, 1, grid_dim, grid_dim, grid_dim))
-        """min = torch.min(norm)
-        max = torch.max(norm)
-        num = torch.sum(norm[norm != 0])"""
-        #x = x / norm
-        #x[x != x] = 0
-        """min = torch.min(x)
-        max = torch.max(x)
-        num = torch.sum(x[x != 0])"""
-        #x = self.relu(x)
         x = self.relu(self.bn2(self.conv2(x)))  # B x 32 x N x N x N
         x = self.mp1(x)  # B x 32 x N/2 x N/2 x N/2
 

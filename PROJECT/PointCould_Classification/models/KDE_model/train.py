@@ -3,23 +3,32 @@ import csv
 import pandas as pd
 import time
 
-import torch
 from tqdm import tqdm
 from sklearn.utils.class_weight import compute_class_weight
 from dataset import ModelTreesDataLoader
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from utils import *
+from preprocess import preprocess
 #from models.model import PointTransformerCls
 #from models.model_globavg import PointTransformerCls
 #from models.model_deep import PointTransformerCls
 from models.model_globavg_deep import PointTransformerCls
 from visualization import show_log_train, show_confusion_matrix
 
+# ===================================================
+# ================= HYPERPARAMETERS =================
+# ===================================================
+# preprocessing
 do_update_caching = True
+do_preprocess = False
+do_augment = False
+frac_train = .8
+
+# training
 do_continue_from_existing_model = False
 num_class = 3
-num_epoch = 100
+num_epoch = 1
 if do_continue_from_existing_model:
     batch_size = 8
     num_workers = 8
@@ -31,13 +40,18 @@ weight_decay = 1e-4
 kernel_size = 2
 num_repeat_kernel = 2
 grid_size = 64
-frac_training_data = 1
-frac_testing_data = 1
+frac_training_data = .1
+frac_testing_data = .1
 
+# files location
 ROOT_DIR = 'data/modeltrees_12000/'
 TRAIN_FILES = 'modeltrees_train.csv'
 TEST_FILES = 'modeltrees_test.csv'
 PRETRAINED_DIR = 'models/pretrained/'
+
+# ===================================================
+# ===================================================
+
 with open(ROOT_DIR + '/modeltrees_shape_names.txt', 'r') as f:
     SAMPLE_LABELS = f.read().splitlines()
 
@@ -47,63 +61,23 @@ def train_epoch(trainDataLoader, model, optimizer, criterion):
     num_samp_tot = 0
     mean_correct = []
     model.train()
-    """compteur = 0
-    time_forward = 0
-    time_backward = 0
-    time_loading = 0
-    time_tocuda = 0
-    time_criterion = 0
-    time_optimizer = 0
-    time_tocpu = 0
-    time_tot = 0"""
+
     for batch_id, data in tqdm(enumerate(trainDataLoader, 0), total=len(trainDataLoader), smoothing=0.9):
-        #start_tot = time.time()
-
-        #start = time.time()
+        # load the samples and labels on cuda
         grid, target = data['grid'], data['label']
-        #time_loading += time.time() - start
-
-        #start = time.time()
         grid, target = grid.to('cuda:0'), target.to('cuda:0')
-        #time_tocuda += time.time() - start
 
         optimizer.zero_grad()
-
-        #start = time.time()
         pred = model(grid)
-        #time_forward += time.time() - start
-
-        #start = time.time()
         loss = criterion(pred, target.long())
-        #time_criterion += time.time() - start
-
-        #start = time.time()
         loss_tot += loss.item()
         pred_choice = pred.data.max(1)[1]
         correct = pred_choice.eq(target.long().data).cpu().sum()
         mean_correct.append(correct.item() / float(grid.size()[0]))
-        #time_tocpu += time.time() - start
-
-        #start = time.time()
         loss.backward()
-        #time_backward += time.time() - start
-
-        #start = time.time()
         optimizer.step()
-        #time_optimizer += time.time() - start
-
         num_samp_tot += grid.shape[0]
-        #time_tot += time.time() - start_tot
-        #compteur += 1
-        """if compteur == 30:
-            print("\ntime forward: " + str(time_forward))
-            print("time backward: " + str(time_backward))
-            print("time loading: " + str(time_loading))
-            print("time tocuda: " + str(time_tocuda))
-            print("time criterion: " + str(time_criterion))
-            print("time optimizer: " + str(time_optimizer))
-            print("time tocpu: " + str(time_tocpu))
-            print("time tot: " + str(time_tot))"""
+
     train_acc = np.mean(mean_correct)
     train_loss = loss_tot / num_samp_tot
     return train_acc, train_loss
@@ -149,6 +123,10 @@ def training(log_version, log_source, args):
         print("CUDA NOT AVAILABLE")
     else:
         print("Cuda available")
+
+    # preprocessing
+    if args['do_preprocess']:
+        preprocess(source_data=ROOT_DIR, frac_train=args['frac_train'], do_augment=args['do_augment'])
 
     # transformation
     kde_transform = ToKDE(args['grid_size'], args['kernel_size'], args['num_repeat_kernel'])
@@ -284,8 +262,12 @@ def main():
         writer.writerow(['train_acc', 'train_loss', 'test_acc', 'test_class_acc', 'test_loss'])
 
     # Training
+    # set the arguments for the training
     args_training = {
         'do_update_caching': do_update_caching,
+        'do_preprocess': do_preprocess,
+        'do_augment': do_augment,
+        'frac_train': frac_train,
         'do_continue_from_existing_model': do_continue_from_existing_model,
         'num_class': num_class,
         'num_epoch': num_epoch,

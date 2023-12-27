@@ -56,7 +56,6 @@ class PointTransformerCls(nn.Module):
 
         # global averaging
         self.conv13 = nn.Conv3d(1024, output_channels, kernel_size=3, stride=1, padding=1, bias=False)
-        #self.bn11 = nn.BatchNorm3d(512)
         self.bn13 = nn.BatchNorm3d(output_channels)
         self.gap = nn.AvgPool3d(int(d_grid/32))
 
@@ -66,17 +65,8 @@ class PointTransformerCls(nn.Module):
         self.linear3 = nn.Linear(256, 128, bias=False)
         self.linear4 = nn.Linear(128, output_channels, bias=False)
 
-
-
-        # fully connected layer 1
+        # fully connected layer
         self.linear = nn.Linear(output_channels, output_channels, bias=False)
-        """self.linear1 = nn.Linear(512 * int((d_grid / 16) ** 3), 256, bias=False)
-
-        # fully connected layer 1
-        self.linear2 = nn.Linear(256, 128, bias=False)
-
-        # fully connected layer 2
-        self.linear3 = nn.Linear(128, output_channels)"""
 
     def forward(self, x):
         batch_size, grid_dim, _, _ = x.size()
@@ -86,11 +76,9 @@ class PointTransformerCls(nn.Module):
         x = self.conv1(x)  # B x 32 x N x N x N
         norm = torch.norm(x, dim=1).reshape((batch_size, 1, grid_dim, grid_dim, grid_dim)) + 1e-9  # B x 1 x N x N x N
         x = x / norm  # B x 32 x N x N x N
-        #x[x != x] = 0  # B x 32 x N x N x N
         x = self.relu(x)  # B x 32 x N x N x N
 
         # convolution layer 1
-        #x = self.relu(self.bn1(self.conv1(x)))  # B x 32 x N x N x N
         x = self.relu(self.bn2(self.conv2(x)))  # B x 32 x N x N x N
         x = self.mp1(x)  # B x 32 x N/2 x N/2 x N/2
 
@@ -119,7 +107,6 @@ class PointTransformerCls(nn.Module):
         x = self.relu(self.bn12(self.conv12(x)))  # B x 1024 x N/32 x N/32 x N/32
 
         # Residual FC layer
-        #x = self.relu(self.bn11(self.conv11(x)))  # B x C x N/16 x N/16 x N/16
         y = x
         x = self.relu(self.bn13(self.conv13(x)))  # B x C x N/32 x N/32 x N/32
         y = self.gap(y)  # B x 1024 x 1 x 1 x 1
@@ -130,14 +117,6 @@ class PointTransformerCls(nn.Module):
         y = self.relu(self.do(self.linear4(y)))  # B x C
         x = self.gap(x)  # B x C x 1 x 1 x 1
         x = x.reshape((batch_size, self.output_channels))  # B x C
-        #x = x.reshape((batch_size, 1024))  # B x 1024
-        #x = x.reshape((batch_size, 512))  # B x 512
         x = self.softmax(x + y)
-        # fully connected layers
-        #x = self.relu(self.do(self.linear1(x)))  # B x 512
-        """x = self.relu(self.do(self.linear2(x)))  # B x 256
-        x = self.relu(self.do(self.linear3(x)))  # B x 128
-        x = self.relu(self.do(self.linear4(x)))  # B x C
-        x = self.softmax(x)  # B x C"""
 
         return x

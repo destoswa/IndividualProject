@@ -1,19 +1,10 @@
 import os
-import numpy as np
 import pandas as pd
-import csv
 import open3d as o3d
-import copy
-import tqdm
 import random
 
 
-def shuffle_data_label(data, label):
-    idx = random.shuffle(range(len(data)))
-    data_shuffled = [x]
-
-
-def preprocess(source_data, frac_train=.8, do_augment=True):
+def preprocess(source_data, frac_train=.8, do_augment=False):
     remove_with_suffixe('Garbage', '_rot')
     remove_with_suffixe('Multi', '_rot')
     remove_with_suffixe('Single', '_rot')
@@ -87,17 +78,16 @@ def data_augmentation(src, df_training_samples, angle, repeat):
         full_file_name = src + '/' + file
         if full_file_name in list_samples:    # only augment training samples
             if not file.split('.')[0].endswith('_rot'): # test if the file is already a rotated file with this orientation
-                #pcd = o3d.io.read_point_cloud(src + '/' + file, format='pcd')
                 pcd = o3d.t.io.read_point_cloud(src + '/' + file, format='pcd')
                 for i in range(repeat):
                     angle_deg = angle * (i+1)
-                    #angle_rad = angle_deg * np.pi / 180
                     newfile = src+'/'+file.split('.')[0]+'_' + str(angle_deg) + '_rot.pcd'
                     pcd_new = pcd.clone()
                     new_pos = pcd.extrude_rotation(angle_deg, [0, 0, 1], resolution=1)
                     new_pos = new_pos.point['positions'][pcd_new.point['positions'].shape[0]:, :]
                     pcd_new.point['positions'] = new_pos
                     o3d.t.io.write_point_cloud(newfile, pcd_new, write_ascii=True)
+
                     # add new file to dataframe:
                     new_row = {'data': newfile, 'label': df_training_samples[df_training_samples['data'] == full_file_name]['label'].values[0]}
                     df_training_samples.loc[len(df_training_samples)] = new_row
@@ -116,12 +106,6 @@ def remove_with_suffixe(src, suff):
 
 
 def main():
-    #repeat = 3
-    #data_augmentation('Multi', 90, repeat)
-    #data_augmentation('Single', 90, repeat)
-    #data_augmentation('Single', 60, repeat)
-    #remove_with_suffixe('Multi', '_rot')
-    #remove_with_suffixe('Single', '_rot')
     preprocess("./", .8, do_augment=False)
 
 
