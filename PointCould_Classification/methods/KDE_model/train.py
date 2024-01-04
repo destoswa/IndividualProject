@@ -48,12 +48,11 @@ ROOT_DIR = 'data/modeltrees_12000/'
 TRAIN_FILES = 'modeltrees_train.csv'
 TEST_FILES = 'modeltrees_test.csv'
 PRETRAINED_DIR = 'models/pretrained/'
-
-# ===================================================
-# ===================================================
-
-with open(ROOT_DIR + '/modeltrees_shape_names.txt', 'r') as f:
+with open(ROOT_DIR + 'modeltrees_shape_names.txt', 'r') as f:
     SAMPLE_LABELS = f.read().splitlines()
+
+# ===================================================
+# ===================================================
 
 
 def train_epoch(trainDataLoader, model, optimizer, criterion):

@@ -30,9 +30,12 @@ class ModelTreesDataLoader(Dataset):
         if do_update_caching:
             self.clean_temp()
             os.mkdir(pickle_dir)
-            os.mkdir(pickle_dir + "Garbage")
-            os.mkdir(pickle_dir + "Multi")
-            os.mkdir(pickle_dir + "Single")
+            if split != 'inference':
+                os.mkdir(pickle_dir + "Garbage")
+                os.mkdir(pickle_dir + "Multi")
+                os.mkdir(pickle_dir + "Single")
+            else:
+                os.mkdir(pickle_dir + "data")
         self.data = pd.read_csv(root_dir + csvfile, delimiter=';')
         self.data = self.data.sample(frac=frac, random_state=42).reset_index(drop=True)
 
@@ -59,7 +62,7 @@ class ModelTreesDataLoader(Dataset):
         with open(self.pickle_dir + filename, 'rb') as file:
             sample = pickle.load(file)
 
-        sample = {'grid': sample['data'], 'label': sample['label']}
+        sample = {'grid': sample['data'], 'label': sample['label'], 'filename': filename}
         if self.transform:
             sample = self.transform(sample)
 

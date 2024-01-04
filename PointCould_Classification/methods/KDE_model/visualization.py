@@ -1,4 +1,5 @@
 from matplotlib import pyplot as plt
+from matplotlib import cm
 import numpy as np
 from sklearn.metrics import confusion_matrix
 import seaborn as sn
@@ -57,6 +58,19 @@ def show_confusion_matrix(target_src, y_pred, y_true, class_labels, epoch=0, do_
         """
     n_classes = len(class_labels)
     conf_mat = confusion_matrix(y_true, y_pred, labels=range(0, n_classes), normalize='true')
+    """# conf mat of 3DmFV
+    conf_mat = np.array([
+        [0.889097744, 0.045739348, 0.065162907],
+        [0.225092251, 0.564575646, 0.210332103],
+        [0.08811749, 0.086782377, 0.825100134]
+        ])
+    # conf mat of transformer
+    conf_mat = np.array([
+        [0.892230576, 0.044486216, 0.063283208],
+        [0.066420664, 0.767527675, 0.166051661],
+        [0.073878628, 0.059366755, 0.866754617]
+        ])"""
+
     df_conf_mat = pd.DataFrame(conf_mat, index=class_labels, columns=class_labels)
 
     fig = plt.figure()
@@ -95,7 +109,8 @@ def show_grid_search(target_src, data, title, do_save=True, do_show=False):
     for i, x in enumerate(X):
         for j, y in enumerate(Y):
             Z[j, i] = data[(data.iloc[:, 0] == x) & (data.iloc[:, 1] == y)].iloc[0, 2]
-    c = plt.pcolor(X, Y, Z, cmap='coolwarm')
+    cmap_reversed = cm.get_cmap('coolwarm').reversed()
+    c = plt.pcolor(X, Y, Z, shading='auto', cmap=cmap_reversed)
     ax.set_title(title)
     ax.set_xlabel('Kernel size')
     ax.set_ylabel('number of repetition')
@@ -121,9 +136,18 @@ if __name__ == '__main__':
     preds = df_data.pred.values
     targets = df_data.target.values
     show_confusion_matrix(src, preds, targets, SAMPLE_LABELS, best_epoch, do_show=True, do_save=True)"""
-    df_test_sgs = pd.DataFrame(columns=['kernel_size', 'number_repeat', 'overall_acc'])
+    """df_test_sgs = pd.DataFrame(columns=['kernel_size', 'number_repeat', 'overall_acc'])
     for i in range(2):
         for j in range(2):
             df_test_sgs.loc[len(df_test_sgs)] = [i,j,42 - i - j]
 
-    show_grid_search('./log/grid_test/', df_test_sgs, 'test', do_save=True, do_show=True)
+    show_grid_search('./log/grid_test/', df_test_sgs, 'test', do_save=True, do_show=True)"""
+    #show_confusion_matrix("./", range(10), range(10), ["garbage", "multiple", "single"], epoch=10, do_save=False, do_show=True)
+    df_res = pd.read_csv('./log/grid_train_FINAL/log_grid_search.csv', sep=';')
+    print(df_res)
+    show_grid_search('./log/grid_train_FINAL',
+        df_res[['kernel_size', 'number_repeat', 'overall_acc']],
+        'Overall Accuracy',
+        do_save=True,
+        do_show=True,
+    )
