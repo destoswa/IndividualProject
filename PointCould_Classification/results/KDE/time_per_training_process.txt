@@ -1,9 +1,0 @@
-num_samps = 5200, batch_size = 8, grid_dim = 64, kernel_size = 2, band_width=.2
-time forward: 0.07108259201049805
-time backward: 0.07765674591064453
-time loading: 0.0
-time tocuda: 3.943652868270874
-time criterion: 0.003018617630004883
-time optimizer: 0.03332018852233887
-time osef: 1.479414939880371
-time tot: 5.6121344566345215
