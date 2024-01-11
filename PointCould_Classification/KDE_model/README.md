@@ -2,11 +2,9 @@
 ## Introduction
 The concept of this model is based on Kernel Density Estimator. Each sample is mapped to a 3D normalized grid. This grid is then filtered through a process where a 3D kernel is matched to each point and discretized over a fixed number of neighbour cells. For each position in the grid, the values of all the kernels that overlap on it are then added up.
 
-<center>
  Continue         		   |  Discrete
 :-------------------------:|:-------------------------:
 <img src="./img/KDE.png" alt="image" width="300" height="auto">  |  <img src="./img/KDE_discrete.png" alt="image" width="300" height="auto">
-</center>
 
 ## Architecture
 The architecture of this method is as following:
