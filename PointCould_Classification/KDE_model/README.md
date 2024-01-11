@@ -20,11 +20,11 @@ Each dataset needs to be paced in the root of the folder _./data/_.
 The structure of the dataset needs to be as following:
 - dataset_name/ 
 	- Single/
-		- _*.pcd*
+		- _*.pcd_
 	- Multi/
-		- _*.pcd*
+		- _*.pcd_
 	- Garbage/
-		- _*.pcd*
+		- _*.pcd_
 
 ## Training
 In order to train a model, the script _train.py_ needs to be runned. The hyperparameters are all at the beggining of the file.
