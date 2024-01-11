@@ -45,7 +45,7 @@ class ModelTreesDataLoader(Dataset):
             with concurrent.futures.ProcessPoolExecutor() as executor:
                 partialmapToKDE = partial(self.mapToKDE, root_dir, pickle_dir, kde_transform)
                 args = range(len(self.data))
-                results = list(tqdm(executor.map(partialmapToKDE, args), total=len(self.data), smoothing=.9, desc="creating caching files"))
+                _ = list(tqdm(executor.map(partialmapToKDE, args), total=len(self.data), smoothing=.9, desc="creating caching files"))
 
         for idx, samp in tqdm(self.data.iterrows(), total=len(self.data), smoothing=.9, desc="loading file names"):
             self.data.iloc[idx, 0] = samp['data'] + '.pickle'

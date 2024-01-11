@@ -96,13 +96,10 @@ def pcToGrid(data, grid_size):
         # add point to grid
         grid[point[0], point[1], point[2]] = 1
 
-        # create KDE grid:
-        #grid = applyKDE(grid, point, kernel_size)
-
     return grid
 
 
-def applyKDE(grid, grid_size, kernel_size, num_repeat):
+def applyKDE(grid, grid_size, kernel_size):
     """ Create a grid with a KDE with respect to one point
         Input:
             GxGxG array: the grid to be updated
@@ -149,7 +146,7 @@ def pcNormalize(data):
 """ --v-----------------------------v-- """
 
 
-def gridNormalize(grid, method='minmax'):
+"""def gridNormalize(grid, method='minmax'):
     if method == 'minmax':
         minVal = np.min(grid)
         maxVal = np.max(grid)
@@ -162,10 +159,10 @@ def gridNormalize(grid, method='minmax'):
 
 
 class ToTensor(object):
-    """Convert ndarrays in sample to Tensors."""
+    #Convert ndarrays in sample to Tensors.
 
     def __call__(self, sample):
         data, label = sample['data'], sample['label']
 
         return {'data': torch.from_numpy(data),
-                'label': torch.from_numpy(np.asarray(label))}
+                'label': torch.from_numpy(np.asarray(label))}"""
