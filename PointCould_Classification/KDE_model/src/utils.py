@@ -50,7 +50,12 @@ class RandScale(object):
 
 
 class ToKDE(object):
-    """ Convert pointCloud to KDE vector """
+    """ Convert pointCloud to KDE vector
+        Input:
+            Nx3 array where N is variable: the pointcloud
+        Return:
+            GxGxG array: the KDE grid
+    """
 
     def __init__(self, grid_size, kernel_size, num_repeat):
         self.grid_size = grid_size
@@ -66,7 +71,7 @@ class ToKDE(object):
 
         # apply KDE:
         for rep in range(self.num_repeat):
-            grid = applyKDE(grid, self.grid_size, self.kernel_size, self.num_repeat)
+            grid = applyKDE(grid, self.grid_size, self.kernel_size)
 
         # to tensor
         grid = torch.from_numpy(grid)
@@ -77,13 +82,11 @@ class ToKDE(object):
 
 
 def pcToGrid(data, grid_size):
-    """ Create a grid with a KDE with respect to the point cloud
+    """ Create a grid from the point cloud
         Input:
-            GxGxG array: the grid to be updated
-            3x1 array: the position of the point
-            int : the size of the kernel
+            Nx3 array where N is variable: the pointcloud
         Output:
-            NxC array
+            GxGxG array: the grid to be updated
     """
     grid = np.zeros((grid_size, grid_size, grid_size))
 
@@ -100,28 +103,36 @@ def pcToGrid(data, grid_size):
 
 
 def applyKDE(grid, grid_size, kernel_size):
-    """ Create a grid with a KDE with respect to one point
+    """ Create a KDE grid from grid
         Input:
             GxGxG array: the grid to be updated
             3x1 array: the position of the point
             int : the size of the kernel
         Output:
-            NxC array
+            GxGxG array: the resulting KDE grid
     """
+    # create kernel
     x, y, z = np.mgrid[-1:1.1:(1 / kernel_size), -1:1.1:(1 / kernel_size), -1:1.1:(1 / kernel_size)]
     pos = np.stack((x, y, z), axis=-1)
     rv = multivariate_normal([0, 0, 0])
     point_grid = rv.pdf(pos)*10
-    new_grid = np.zeros((grid_size + 2 * kernel_size, grid_size + 2 * kernel_size, grid_size + 2 * kernel_size))
-    lst_pos = np.where(grid != 0)
 
+    # create the new grid to return (with margin to ease the application of the kernel on borders)
+    new_grid = np.zeros((grid_size + 2 * kernel_size, grid_size + 2 * kernel_size, grid_size + 2 * kernel_size))
+
+    # apply kernel on each non-null point of the grid
+    lst_pos = np.where(grid != 0)
     for ind in range(len(lst_pos[0])):
+        # find the value of the current point to scale the kernel
         coeff = grid[lst_pos[0][ind], lst_pos[1][ind], lst_pos[2][ind]]
+
+        # add scaled values of the kernel centered at the position of the point
         new_grid[lst_pos[0][ind]: lst_pos[0][ind] + 2 * kernel_size + 1,
         lst_pos[1][ind]: lst_pos[1][ind] + 2 * kernel_size + 1,
         lst_pos[2][ind]: lst_pos[2][ind] + 2 * kernel_size + 1,
         ] += point_grid * coeff
 
+    # return truncated new grid by removing the margin
     return new_grid[kernel_size:-kernel_size, kernel_size:-kernel_size, kernel_size:-kernel_size]
 
 
@@ -139,30 +150,3 @@ def pcNormalize(data):
     pc = pc / m
     normal_data = pc
     return normal_data
-
-
-""" ----------------------------------- """
-""" --|--- OLD USELESS FUNCTIONS ---|-- """
-""" --v-----------------------------v-- """
-
-
-"""def gridNormalize(grid, method='minmax'):
-    if method == 'minmax':
-        minVal = np.min(grid)
-        maxVal = np.max(grid)
-        grid = (grid - minVal)/(maxVal - minVal)
-    elif method == 'white':
-        raise NotImplementedError('This method still need to be implemented')
-    else:
-        raise ValueError('The parameter for the argument "method" is wrong.')
-    return grid
-
-
-class ToTensor(object):
-    #Convert ndarrays in sample to Tensors.
-
-    def __call__(self, sample):
-        data, label = sample['data'], sample['label']
-
-        return {'data': torch.from_numpy(data),
-                'label': torch.from_numpy(np.asarray(label))}"""

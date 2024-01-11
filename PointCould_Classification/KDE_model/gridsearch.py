@@ -7,16 +7,15 @@ from src.visualization import show_log_train, show_grid_search
 
 
 def main():
-    lst_kernel_sizes = range(1, 4)
-    lst_repeat_kernel = range(1, 4)
+    lst_kernel_sizes = range(1, 3)
+    lst_repeat_kernel = range(1, 3)
     args_training = {
         'do_update_caching': True,
         'do_preprocess': False,
-        'do_augment': False,
         'frac_train': .8,
         'do_continue_from_existing_model': False,
         'num_class': 3,
-        'num_epoch': 10,
+        'num_epoch': 1,
         'batch_size': 12,
         'num_workers': 12,
         'learning_rate': 1e-3,
@@ -38,6 +37,7 @@ def main():
     # create file for results:
     df_res = pd.DataFrame(columns=['kernel_size', 'number_repeat', 'overall_acc', 'average_acc'])
     total_time = time.time()
+
     # grid-search
     for kernel_size in lst_kernel_sizes:
         for repeat_kernel in lst_repeat_kernel:
@@ -58,7 +58,7 @@ def main():
 
             # training
             start_time = time.time()
-            OA, AA = training(version, log_file_root, args_training)
+            OA, AA = training(log_file_root, args_training)
             end_time = time.time()
 
             # saving results

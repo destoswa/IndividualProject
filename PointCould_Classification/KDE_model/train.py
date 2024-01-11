@@ -18,8 +18,7 @@ from src.visualization import show_log_train, show_confusion_matrix
 # ===================================================
 # preprocessing
 do_update_caching = True
-do_preprocess = False
-do_augment = False
+do_preprocess = True
 frac_train = .8
 
 # training
@@ -63,8 +62,11 @@ def train_epoch(trainDataLoader, model, optimizer, criterion):
         grid, target = data['grid'], data['label']
         grid, target = grid.to('cuda:0'), target.to('cuda:0')
 
+        # compute prediction
         optimizer.zero_grad()
         pred = model(grid)
+
+        # compute loss
         loss = criterion(pred, target.long())
         loss_tot += loss.item()
         pred_choice = pred.data.max(1)[1]
@@ -74,6 +76,7 @@ def train_epoch(trainDataLoader, model, optimizer, criterion):
         optimizer.step()
         num_samp_tot += grid.shape[0]
 
+    # compute accuracy and mean loss
     train_acc = np.mean(mean_correct)
     train_loss = loss_tot / num_samp_tot
     return train_acc, train_loss
@@ -87,9 +90,14 @@ def test_epoch(testDataLoader, model, criterion, num_class):
     class_acc = np.zeros((num_class, 3))
     num_samp_tot = 0
     for batch_id, data in tqdm(enumerate(testDataLoader, 0), total=len(testDataLoader), smoothing=0.9):
+        # load the samples and labels on cuda
         grid, target = data['grid'], data['label']
         grid, target = grid.cuda(), target.cuda()
+
+        # compute prediction
         pred = model(grid)
+
+        # compute loss
         loss = criterion(pred, target.long())
         loss_tot += loss.item()
         pred_choice = pred.data.max(1)[1]
@@ -102,6 +110,8 @@ def test_epoch(testDataLoader, model, criterion, num_class):
         num_samp_tot += grid.size()[0]
         pred_tot.append(pred_choice.tolist())
         target_tot.append(target.tolist())
+
+    # compute accuracies and mean loss
     class_acc[:, 2] = class_acc[:, 0] / class_acc[:, 1]
     class_acc = np.mean(class_acc[:, 2])
     test_acc = np.mean(mean_correct)
@@ -111,7 +121,7 @@ def test_epoch(testDataLoader, model, criterion, num_class):
     return test_acc, test_loss, class_acc, pred_tot, target_tot
 
 
-def training(log_version, log_source, args):
+def training(log_source, args):
     # check torch and if cuda is available
     print("torch version : " + torch.__version__)
     print('device : ' + torch.cuda.get_device_name())
@@ -122,7 +132,7 @@ def training(log_version, log_source, args):
 
     # preprocessing
     if args['do_preprocess']:
-        preprocess(source_data=ROOT_DIR, frac_train=args['frac_train'], do_augment=args['do_augment'])
+        preprocess(source_data=ROOT_DIR, frac_train=args['frac_train'])
 
     # transformation
     kde_transform = ToKDE(args['grid_size'], args['kernel_size'], args['num_repeat_kernel'])
@@ -262,7 +272,6 @@ def main():
     args_training = {
         'do_update_caching': do_update_caching,
         'do_preprocess': do_preprocess,
-        'do_augment': do_augment,
         'frac_train': frac_train,
         'do_continue_from_existing_model': do_continue_from_existing_model,
         'num_class': num_class,
@@ -278,7 +287,7 @@ def main():
         'frac_testing': frac_testing_data,
     }
     start_time = time.time()
-    _, _ = training(version, log_file_root, args_training)
+    _, _ = training(log_file_root, args_training)
     end_time = time.time()
 
     # Plots of results

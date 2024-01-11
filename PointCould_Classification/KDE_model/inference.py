@@ -8,8 +8,15 @@ from torch.utils.data import DataLoader
 from src.utils import *
 from models.model import KDE_cls_model
 
+
+# ===================================================
+# ================= HYPERPARAMETERS =================
+# ===================================================
+# preprocessing
 do_preprocess = True
 do_update_caching = True
+
+# inference
 batch_size = 12
 num_workers = 12
 num_class = 3
@@ -20,10 +27,13 @@ SRC_INF_ROOT = "./inference/"
 SRC_INF_DATA = SRC_INF_ROOT + "data/"
 SRC_MODEL = "./models/pretrained/model_KDE.tar"
 INFERENCE_FILE = "modeltrees_inference.csv"
-
 with open(SRC_INF_ROOT + 'modeltrees_shape_names.txt', 'r') as f:
     SAMPLE_LABELS = f.read().splitlines()
 
+# ===================================================
+# ===================================================
+
+# store relation between number and class label
 dict_labels = {}
 for idx, cls in enumerate(SAMPLE_LABELS):
     dict_labels[idx] = cls
@@ -35,22 +45,28 @@ def inference(args):
         "num_class": args['num_class'],
         "grid_dim": args['grid_size'],
     }
+
+    # load the model
     model = KDE_cls_model(conf).to(torch.device('cuda'))
     checkpoint = torch.load(SRC_MODEL)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
 
-    print("Creating folders...")
+    # create the folders for results
+    if not os.path.isdir("./inference/results/"):
+        os.mkdir("./inference/results")
     for cls in SAMPLE_LABELS:
         if not os.path.isdir("./inference/results/" + cls):
             os.mkdir("./inference/results/" + cls)
 
+    # preprocess the samples
     if args['do_preprocess']:
         lst_files_to_process = ['data/' + cls for cls in os.listdir(SRC_INF_DATA)]
         df_files_to_process = pd.DataFrame(lst_files_to_process, columns=['data'])
         df_files_to_process['label'] = 0
         df_files_to_process.to_csv(SRC_INF_ROOT + INFERENCE_FILE, sep=';', index=False)
 
+    # make the predictions
     print("making predictions...")
     kde_transform = ToKDE(args['grid_size'], args['kernel_size'], args['num_repeat_kernel'])
     inferenceSet = ModelTreesDataLoader(INFERENCE_FILE, SRC_INF_ROOT, split='inference', transform=None, do_update_caching=args['do_update_caching'], kde_transform=kde_transform)
@@ -58,16 +74,22 @@ def inference(args):
     df_predictions = pd.DataFrame(columns=["file_name", "class"])
 
     for batch_id, data in tqdm(enumerate(inferenceDataLoader, 0), total=len(inferenceDataLoader), smoothing=0.9):
+        # load the samples and labels on cuda
         grid, target, filenames = data['grid'], data['label'], data['filename']
         grid, target = grid.cuda(), target.cuda()
+
+        # compute prediction
         pred = model(grid)
         pred_choice = pred.data.max(1)[1]
+
+        # copy samples into right result folder
         for idx, pred in enumerate(pred_choice):
             fn = filenames[idx].replace('.pickle', '')
             dest = "inference/results/" + dict_labels[pred.item()] + "/" + fn.replace('data/', "")
             shutil.copyfile(os.path.abspath('inference/' + fn), os.path.abspath(dest))
             df_predictions.loc[len(df_predictions)] = [fn, pred.item()]
 
+    # save results in csv file
     df_predictions.to_csv(SRC_INF_ROOT + 'results/results.csv', sep=';', index=False)
 
 

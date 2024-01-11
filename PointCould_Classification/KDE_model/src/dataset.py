@@ -85,13 +85,9 @@ class ModelTreesDataLoader(Dataset):
             pickle.dump(sample, file)
 
 
-if __name__ == '__main__':
-    from torch.utils.data import DataLoader
-    ROOT_DIR = 'data/modeltrees_5200/'
-    TRAIN_FILES = 'modeltrees_train.csv'
-    trainingSet = ModelTreesDataLoader(TRAIN_FILES, ROOT_DIR, split='train', transform=None,
-                                       frac=1.0)
-    trainDataLoader = DataLoader(trainingSet, batch_size=16, shuffle=True, num_workers=4)
-    for batch_id, data in tqdm(enumerate(trainDataLoader, 0), total=len(trainDataLoader), smoothing=0.9):
-        grid, target = data['grid'], data['label']
+def main():
+    print("not the right way to use me Pal")
 
+
+if __name__ == '__main__':
+    main()

@@ -8,7 +8,7 @@ The concept of this model is based on Kernel Density Estimator. Each sample is m
 
 ## Architecture
 The architecture of this method is as following:
-- data : this folder needs to be added since it is in the _.gitignore_ file. The dataset for the training and grid-search can then be placed into it and will need to be referenced in the corresponding files.
+- data : this folder needs to be created since it is in the _.gitignore_ file. The dataset for the training and grid-search can then be placed into it and will need to be referenced in the corresponding files.
 - inference: This folder contains everything linked with inference (dataset, results)
 - log: This folder contains all the results of the different trainings and grid-searchs. For each new one, a subfolder is created containing all the results. (logs, confusion matrix, best model, ...)
 - src: This folder contains the different files for preprocessing, results visualization, dataset class, etc
@@ -25,6 +25,9 @@ The structure of the dataset needs to be as following:
 		- _*.pcd_
 	- Garbage/
 		- _*.pcd_
+	- modeltrees_shape_names.txt (name of the classes)
+
+**Important note: The file modeltrees_shape_names.txt needs to be at the root of each dataset. It can be found in _./inference/_**
 
 ## Training
 In order to train a model, the script _train.py_ needs to be runned. The hyperparameters are all at the beggining of the file.

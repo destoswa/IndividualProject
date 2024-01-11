@@ -5,9 +5,9 @@ import random
 
 
 def preprocess(source_data, frac_train=.8, do_augment=False):
-    remove_with_suffixe('Garbage', '_rot')
-    remove_with_suffixe('Multi', '_rot')
-    remove_with_suffixe('Single', '_rot')
+    remove_with_suffixe(source_data + '/Garbage', '_rot')
+    remove_with_suffixe(source_data + '/Multi', '_rot')
+    remove_with_suffixe(source_data + '/Single', '_rot')
 
     # Create file with different labels:
     with open(f'{source_data}/modeltrees_shape_names.txt', 'w') as f:
@@ -98,11 +98,9 @@ def data_augmentation(src, df_training_samples, angle, repeat):
 
 
 def remove_with_suffixe(src, suff):
-    print('data suppression in folder : ' + src)
     for file in os.listdir(src):
         if file.split('.')[0].endswith(suff):
             os.remove(src+'/'+file)
-    print('data suppression terminated')
 
 
 def main():

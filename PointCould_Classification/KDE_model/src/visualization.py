@@ -7,6 +7,14 @@ import pandas as pd
 
 
 def show_log_train(data_src, target_src, do_save=True, do_show=False):
+    """
+        plots the confusion matrix as and image
+        :param data_src: location of data
+        :param target_src : location of saved image
+        :param do_save: saves the image
+        :param do_show: shows the image
+        :return: None (just plots)
+        """
     data = pd.read_csv(data_src, delimiter=';')
     ls_train_acc = data['train_acc'].to_list()
     ls_train_loss = data['train_loss'].to_list()
