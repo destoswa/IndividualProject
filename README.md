@@ -9,4 +9,4 @@ In the folder _PointCloud_Classification_, 3 methods are either implemented or t
 - the pointTransformer method which has been imported from the following repo: https://github.com/qq456cvb/Point-Transformers
 - the KDE method which has been implemented from scratch.
 
-Each of those methods contain there own README.md file
+Each of those methods contain its own README.md file
