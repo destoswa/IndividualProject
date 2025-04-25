@@ -11,7 +11,8 @@ from time import time
 import tkinter as tk
 from tkinter import messagebox
 
-
+if not os.getcwd().endswith('KDE_model'):
+    os.chdir("./PointCould_Classification/KDE_model")
 # ===================================================
 # ================= HYPERPARAMETERS =================
 # ===================================================
@@ -27,7 +28,7 @@ grid_size = 64
 kernel_size = 1
 num_repeat_kernel = 2
 SRC_INF_ROOT = "./inference/"
-SRC_INF_DATA = SRC_INF_ROOT + "data/"
+SRC_INF_DATA = "test"
 SRC_INF_RESULTS = os.path.join(SRC_INF_ROOT, 'results/')
 # SRC_INF_DATA = r"D:\PDM_repo\Github\PDM\data\classification_gt\classification_gt\color_grp_full_tile_128_out_gt_split_instance\data"
 SRC_MODEL = "./models/pretrained/model_KDE.tar"
@@ -53,7 +54,7 @@ def inference(args):
 
     # load the model
     model = KDE_cls_model(conf).to(torch.device('cuda'))
-    checkpoint = torch.load(SRC_MODEL)
+    checkpoint = torch.load(SRC_MODEL, weights_only=False)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
 
@@ -72,7 +73,7 @@ def inference(args):
 
     # preprocess the samples
     if args['do_preprocess']:
-        lst_files_to_process = ['data/' + cls for cls in os.listdir(SRC_INF_DATA) if cls.endswith('.pcd')]
+        lst_files_to_process = [os.path.join(SRC_INF_DATA, cls) for cls in os.listdir(os.path.join(SRC_INF_ROOT, SRC_INF_DATA)) if cls.endswith('.pcd')]
         df_files_to_process = pd.DataFrame(lst_files_to_process, columns=['data'])
         df_files_to_process['label'] = 0
         df_files_to_process.to_csv(SRC_INF_ROOT + INFERENCE_FILE, sep=';', index=False)
@@ -102,10 +103,14 @@ def inference(args):
 
         # copy samples into right result folder
         for idx, pred in enumerate(pred_choice):
-            fn = filenames[idx].replace('.pickle', '')
-            dest = "inference/results/" + dict_labels[pred.item()] + "/" + fn.replace('data/', "")
-            shutil.copyfile(os.path.abspath('inference/' + fn), os.path.abspath(dest))
-            df_predictions.loc[len(df_predictions)] = [fn, pred.item()]
+            fn = os.path.basename(filenames[idx].replace('.pickle', ''))
+            dest = "inference/results/" + dict_labels[pred.item()] + "/" + fn.replace(SRC_INF_DATA, "")
+            dest = os.path.join("inference/results/", dict_labels[pred.item()], fn)
+            shutil.copyfile(
+                os.path.abspath(os.path.join(SRC_INF_ROOT, SRC_INF_DATA, fn)),
+                os.path.abspath(dest)
+                )
+            df_predictions.loc[len(df_predictions)] = [os.path.join(SRC_INF_DATA, fn), pred.item()]
 
     # save results in csv file
     df_predictions.to_csv(SRC_INF_ROOT + 'results/results.csv', sep=';', index=False)

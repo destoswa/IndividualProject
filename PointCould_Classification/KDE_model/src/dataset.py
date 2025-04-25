@@ -85,7 +85,7 @@ class ModelTreesDataLoader(Dataset):
         #     del self.data[idx]
 
         for idx, samp in tqdm(self.data.iterrows(), total=len(self.data), smoothing=.9, desc="loading file names"):
-            self.data.iloc[idx, 0] = samp['data'] + '.pickle'
+            self.data.iloc[idx, 0] = os.path.join('data', os.path.basename(samp['data']) + '.pickle')
 
     def __len__(self):
         return len(self.data)
@@ -100,6 +100,7 @@ class ModelTreesDataLoader(Dataset):
             sample = pickle.load(file)
 
         sample = {'grid': sample['data'], 'label': sample['label'], 'filename': filename}
+        print("FILENAME: ", sample['filename'])
         if self.transform:
             sample = self.transform(sample)
 
@@ -120,7 +121,8 @@ class ModelTreesDataLoader(Dataset):
             sample = {'data': pointCloud, 'label': label}
             sample = kde_transform(sample)
 
-            with open(pickle_dir + samp['data'] + '.pickle', 'wb') as file:
+            #with open(pickle_dir + samp['data'] + '.pickle', 'wb') as file:
+            with open(os.path.join(pickle_dir, 'data', os.path.basename(samp['data']) + '.pickle'), 'wb') as file:
                 pickle.dump(sample, file)
             return ""
         except Exception as e:
