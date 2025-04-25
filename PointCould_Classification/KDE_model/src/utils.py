@@ -144,9 +144,12 @@ def pcNormalize(data):
             NxC array
     """
     pc = data
+    # print('derp')
     centroid = np.mean(data, axis=0)
+    # print('durp')
     pc = pc - centroid
     m = np.max(np.sqrt(np.sum(pc ** 2, axis=1)))
-    pc = pc / m
+    # print(f"\t Max value: {m}")
+    pc = pc / m if m > 0 else 0
     normal_data = pc
     return normal_data

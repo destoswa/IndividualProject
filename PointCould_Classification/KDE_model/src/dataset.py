@@ -37,15 +37,52 @@ class ModelTreesDataLoader(Dataset):
             else:
                 os.mkdir(pickle_dir + "data")
         self.data = pd.read_csv(root_dir + csvfile, delimiter=';')
-        self.data = self.data.sample(frac=frac, random_state=42).reset_index(drop=True)
 
         print('Loading ', split, ' set...')
+        self.num_fails = []
         if do_update_caching:
             # creating grids using multiprocess
             with concurrent.futures.ProcessPoolExecutor() as executor:
                 partialmapToKDE = partial(self.mapToKDE, root_dir, pickle_dir, kde_transform)
                 args = range(len(self.data))
-                _ = list(tqdm(executor.map(partialmapToKDE, args), total=len(self.data), smoothing=.9, desc="creating caching files"))
+                results = list(tqdm(executor.map(partialmapToKDE, args), total=len(self.data), smoothing=.9, desc="creating caching files"))
+            self.num_fails = [(idx, x) for (idx, x) in enumerate(results) if x != ""]
+            print(f"Number of failing files: {len(self.num_fails)}")
+            if len(self.num_fails) > 0:
+                print("Failing samples:")
+                for idx, samp in self.num_fails:
+                    print(idx, ' - ', samp)
+
+                self.data.drop(labels=[x for x,_ in self.num_fails], axis=0, inplace=True)
+
+        # shuffle the dataset
+        self.data = self.data.sample(frac=frac, random_state=42).reset_index(drop=True)
+
+        # print('Loading ', split, ' set...')
+        # self.num_fails = []
+        # if do_update_caching:
+
+
+        #     # args = range(len(self.data))
+        #     # for arg in args:
+        #     #     self.mapToKDE(root_dir, pickle_dir, kde_transform, arg)
+
+
+
+        #     # creating grids using multiprocess
+        #     with concurrent.futures.ProcessPoolExecutor() as executor:
+        #         partialmapToKDE = partial(self.mapToKDE, root_dir, pickle_dir, kde_transform)
+        #         args = range(len(self.data))
+        #         results = list(tqdm(executor.map(partialmapToKDE, args), total=len(self.data), smoothing=.9, desc="creating caching files"))
+        #     self.num_fails = [(idx, x) for (idx, x) in enumerate(results) if x != ""]
+        #     print(f"Number of failing files: {len(self.num_fails)}")
+        #     for idx, samp in self.num_fails:
+        #         print(idx, ' - ', samp)
+        
+        # list_ids = sorted([idx for idx, _ in self.num_fails], reverse=True)
+        # print(list_ids)
+        # for idx in list_ids:
+        #     del self.data[idx]
 
         for idx, samp in tqdm(self.data.iterrows(), total=len(self.data), smoothing=.9, desc="loading file names"):
             self.data.iloc[idx, 0] = samp['data'] + '.pickle'
@@ -73,16 +110,22 @@ class ModelTreesDataLoader(Dataset):
             shutil.rmtree(self.pickle_dir)
 
     def mapToKDE(self, root_dir, pickle_dir, kde_transform, idx):
-        samp = self.data.iloc[idx]
-        pcd_name = os.path.join(root_dir, samp['data'])
-        pcd = o3d.io.read_point_cloud(pcd_name)
-        pointCloud = np.asarray(pcd.points)
-        label = np.asarray(samp['label'])
-        sample = {'data': pointCloud, 'label': label}
-        sample = kde_transform(sample)
+        try:
+            samp = self.data.iloc[idx]
+            pcd_name = os.path.join(root_dir, samp['data'])
+            pcd = o3d.io.read_point_cloud(pcd_name, format='pcd')
+            pointCloud = np.asarray(pcd.points)
+            # print(f"Shape of {pcd_name}: {pointCloud.shape}")
+            label = np.asarray(samp['label'])
+            sample = {'data': pointCloud, 'label': label}
+            sample = kde_transform(sample)
 
-        with open(pickle_dir + samp['data'] + '.pickle', 'wb') as file:
-            pickle.dump(sample, file)
+            with open(pickle_dir + samp['data'] + '.pickle', 'wb') as file:
+                pickle.dump(sample, file)
+            return ""
+        except Exception as e:
+            return pcd_name
+        
 
 
 def main():
